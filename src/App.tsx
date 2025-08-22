@@ -6,7 +6,7 @@ function App() {
         Starter UI – replace this with the interactive solver interface.
       </p>
     </main>
-  );
+  )
 }
 
-export default App;
+export default App
