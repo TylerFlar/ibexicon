@@ -1,4 +1,5 @@
 import { WordlistDebug } from './app/components/WordlistDebug'
+import { SolverDebug } from './app/components/SolverDebug'
 
 function App() {
   return (
@@ -8,6 +9,7 @@ function App() {
         Debug view: load manifest & per-length wordlists + priors.
       </p>
       <WordlistDebug />
+      <SolverDebug />
     </main>
   )
 }

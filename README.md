@@ -49,9 +49,9 @@ npm run build:data
 
 This reads `data/en-full.txt` and produces, for every observed word length `L`:
 
-* `public/wordlists/en/en-<L>.txt` – one word per line, sorted by descending raw frequency then ascending lexicographic word for ties.
-* `public/wordlists/en/en-<L>-priors.json` – EB-smoothed prior probabilities using a letter-position model blended with counts.
-* `public/wordlists/en/manifest.json` – metadata listing lengths, vocab sizes, token totals, and build parameters.
+- `public/wordlists/en/en-<L>.txt` – one word per line, sorted by descending raw frequency then ascending lexicographic word for ties.
+- `public/wordlists/en/en-<L>-priors.json` – EB-smoothed prior probabilities using a letter-position model blended with counts.
+- `public/wordlists/en/manifest.json` – metadata listing lengths, vocab sizes, token totals, and build parameters.
 
 All lengths are discovered dynamically; there is no hard-coded length limit.
 
@@ -59,12 +59,12 @@ All lengths are discovered dynamically; there is no hard-coded length limit.
 
 The EB prior blends empirical word frequency with a letter-position model. Parameters (CLI flags, defaults shown):
 
-* `--alpha <0.5>`: Laplace/Jeffreys smoothing per letter-position.
-* `--muFactorShort <0.05>`: μ = muFactorShort·N for lengths ≤ `--longThreshold`.
-* `--muFactorLong <0.10>`: μ = muFactorLong·N for lengths > `--longThreshold`.
-* `--longThreshold <8>`: boundary between short and long lengths.
-* `--tau <1.0>`: temperature; if ≠ 1, probabilities are reweighted by P^(1/τ) and renormalized.
-* `--exclude-lengths <csv>`: optionally skip specific lengths.
+- `--alpha <0.5>`: Laplace/Jeffreys smoothing per letter-position.
+- `--muFactorShort <0.05>`: μ = muFactorShort·N for lengths ≤ `--longThreshold`.
+- `--muFactorLong <0.10>`: μ = muFactorLong·N for lengths > `--longThreshold`.
+- `--longThreshold <8>`: boundary between short and long lengths.
+- `--tau <1.0>`: temperature; if ≠ 1, probabilities are reweighted by P^(1/τ) and renormalized.
+- `--exclude-lengths <csv>`: optionally skip specific lengths.
 
 Formula:
 

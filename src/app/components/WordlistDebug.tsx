@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { loadEnManifest } from '../../solver/data/manifest'
 import { loadWordlistSet } from '../../solver/data/loader'
 import type { WordlistSet } from '../../solver/data/loader'
@@ -40,9 +40,7 @@ export function WordlistDebug() {
     if (state.error) return <p style={{ color: 'crimson' }}>Error: {state.error}</p>
     if (!state.data) return null
     const { words, priors, length } = state.data
-    const top = [...Object.entries(priors)]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
+    const top = [...Object.entries(priors)].sort((a, b) => b[1] - a[1]).slice(0, 10)
     const sum = Object.values(priors).reduce((s, v) => s + v, 0)
     return (
       <div style={{ marginTop: '1rem' }}>
@@ -74,7 +72,7 @@ export function WordlistDebug() {
     <div style={{ marginTop: '2rem' }}>
       <h2 style={{ margin: '0 0 0.5rem' }}>Wordlist Debug</h2>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-        {lengths.map(L => (
+        {lengths.map((L) => (
           <button
             key={L}
             onClick={() => pick(L)}
@@ -95,7 +93,8 @@ export function WordlistDebug() {
       </div>
       {meta && (
         <p style={{ margin: '0.5rem 0', fontSize: '0.75rem', color: '#555' }}>
-          α={meta.alpha} μMode={meta.muMode || 'piecewise'} τ={meta.tau} short={meta.muFactorShort} long={meta.muFactorLong}
+          α={meta.alpha} μMode={meta.muMode || 'piecewise'} τ={meta.tau} short={meta.muFactorShort}{' '}
+          long={meta.muFactorLong}
         </p>
       )}
       {renderSet()}
@@ -103,7 +102,15 @@ export function WordlistDebug() {
   )
 }
 
-const th: React.CSSProperties = { textAlign: 'left', padding: '2px 4px', borderBottom: '1px solid #ccc' }
-const td: React.CSSProperties = { padding: '2px 4px', borderBottom: '1px solid #eee', fontFamily: 'monospace' }
+const th: React.CSSProperties = {
+  textAlign: 'left',
+  padding: '2px 4px',
+  borderBottom: '1px solid #ccc',
+}
+const td: React.CSSProperties = {
+  padding: '2px 4px',
+  borderBottom: '1px solid #eee',
+  fontFamily: 'monospace',
+}
 
 export default WordlistDebug

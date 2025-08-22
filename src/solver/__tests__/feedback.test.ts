@@ -1,42 +1,42 @@
-import { describe, it, expect } from 'vitest';
-import { feedbackTrits, feedbackPattern } from '../feedback';
-import { decodePattern } from '../pattern';
+import { describe, it, expect } from 'vitest'
+import { feedbackTrits, feedbackPattern } from '../feedback'
+import { decodePattern } from '../pattern'
 
 function toPatternArray(p: ReturnType<typeof feedbackPattern>, length: number) {
-  return decodePattern(p, length);
+  return decodePattern(p, length)
 }
 
 describe('feedback basic cases', () => {
   it('all greens when guess == secret', () => {
-    const g = 'crane';
-    const pat = feedbackTrits(g, g);
-    expect(pat).toEqual(new Array(g.length).fill(2));
-  });
+    const g = 'crane'
+    const pat = feedbackTrits(g, g)
+    expect(pat).toEqual(new Array(g.length).fill(2))
+  })
 
   it('all grays when no overlap', () => {
-    const guess = 'aaaaa';
-    const secret = 'bcdfg';
-    const pat = feedbackTrits(guess, secret);
-    expect(pat).toEqual(new Array(guess.length).fill(0));
-  });
-});
+    const guess = 'aaaaa'
+    const secret = 'bcdfg'
+    const pat = feedbackTrits(guess, secret)
+    expect(pat).toEqual(new Array(guess.length).fill(0))
+  })
+})
 
 describe('duplicate handling cases', () => {
   it('secret cigar, guess civic', () => {
     // secret: c i g a r
     // guess:  c i v i c
     // expect: g g ? y ?
-    const guess = 'civic';
-    const secret = 'cigar';
-    const trits = feedbackTrits(guess, secret); // compute
+    const guess = 'civic'
+    const secret = 'cigar'
+    const trits = feedbackTrits(guess, secret) // compute
     // Derive expected manually:
     // pos0 c = c green (2)
     // pos1 i = i green (2)
     // pos2 v not in secret -> 0
     // pos3 i: only one i in secret and already used by green -> 0 (gray)
     // pos4 c: second c not in secret (only one c) -> 0
-    expect(trits).toEqual([2,2,0,0,0]);
-  });
+    expect(trits).toEqual([2, 2, 0, 0, 0])
+  })
 
   it('secret allee, guess eagle', () => {
     // secret: a l l e e
@@ -51,11 +51,11 @@ describe('duplicate handling cases', () => {
     // pos3 l -> counts.l=2 -> yellow (1) counts.l->1
     // pos4 already green
     // Final trits: [1,1,0,1,2]
-    const guess = 'eagle';
-    const secret = 'allee';
-    const trits = feedbackTrits(guess, secret);
-    expect(trits).toEqual([1,1,0,1,2]);
-  });
+    const guess = 'eagle'
+    const secret = 'allee'
+    const trits = feedbackTrits(guess, secret)
+    expect(trits).toEqual([1, 1, 0, 1, 2])
+  })
 
   it('secret abbey, guess cabal', () => {
     // secret: a b b e y
@@ -68,24 +68,24 @@ describe('duplicate handling cases', () => {
     // pos3 a -> no remaining a -> gray
     // pos4 l -> gray
     // Final: [0,1,2,0,0]
-    const guess = 'cabal';
-    const secret = 'abbey';
-    const trits = feedbackTrits(guess, secret);
-    expect(trits).toEqual([0,1,2,0,0]);
-  });
-});
+    const guess = 'cabal'
+    const secret = 'abbey'
+    const trits = feedbackTrits(guess, secret)
+    expect(trits).toEqual([0, 1, 2, 0, 0])
+  })
+})
 
 describe('consistency oracle small set', () => {
   // Tiny toy set; ensure feedbackPattern + decode = feedbackTrits
-  const words = ['aaaa', 'aaab', 'aaba', 'abaa', 'baaa'];
+  const words = ['aaaa', 'aaab', 'aaba', 'abaa', 'baaa']
   it('pattern decode matches direct trits for all pairs', () => {
     for (const g of words) {
       for (const s of words) {
-        const direct = feedbackTrits(g, s);
-        const pat = feedbackPattern(g, s);
-        const decoded = toPatternArray(pat, g.length);
-        expect(decoded).toEqual(direct);
+        const direct = feedbackTrits(g, s)
+        const pat = feedbackPattern(g, s)
+        const decoded = toPatternArray(pat, g.length)
+        expect(decoded).toEqual(direct)
       }
     }
-  });
-});
+  })
+})
