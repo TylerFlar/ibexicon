@@ -6,8 +6,8 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
-    }
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
   },
   test: {
     environment: 'jsdom',
@@ -18,6 +18,6 @@ export default defineConfig({
       reporter: ['text', 'html', 'lcov'],
     },
     include: ['src/**/*.test.{ts,tsx}'],
-    globals: true
-  }
+    globals: true,
+  },
 })
