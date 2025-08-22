@@ -37,9 +37,9 @@ export function useSuggestions(params: UseSuggestionsParams) {
         tau: tau ?? null,
         seed,
       })
-    } catch (e) {
-      // Fail-safe: never crash UI; return empty list if scoring throws
-      console.warn('Suggestion scoring failed', e)
+    } catch {
+      // eslint-disable-next-line no-console -- debug aid for unexpected scoring failures
+      console.error('Suggestion scoring failed')
       return []
     }
   }, [candidateSet, priors, attemptsLeft, attemptsMax, topK, tau, seed, enabled])

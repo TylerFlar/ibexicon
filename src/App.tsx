@@ -9,9 +9,9 @@ function App() {
       <p style={{ marginTop: '0.5rem', color: '#555', fontSize: '0.9rem' }}>
         Debug view: load manifest & per-length wordlists + priors.
       </p>
-  <WordlistDebug />
-  <SolverDebug />
-  <SuggestDebug />
+      <WordlistDebug />
+      <SolverDebug />
+      <SuggestDebug />
     </main>
   )
 }

@@ -36,7 +36,7 @@ describe('scoring prefilter fidelity', () => {
       priors[w] = r
       sum += r
     }
-  for (const w of words) priors[w]! /= sum
+    for (const w of words) priors[w]! /= sum
 
     const base = suggestNext(
       { words, priors },

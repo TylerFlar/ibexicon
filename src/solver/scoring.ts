@@ -67,11 +67,7 @@ interface PatternAccum {
 }
 
 /** Quick heuristic used for prefiltering large candidate sets */
-function heuristicOrder(
-  words: string[],
-  priors: Float64Array,
-  limit: number,
-): number[] {
+function heuristicOrder(words: string[], priors: Float64Array, limit: number): number[] {
   const N = words.length
   if (N <= limit) return [...Array(N).keys()]
   const L = words[0]?.length || 0
@@ -164,9 +160,16 @@ export function suggestNext(input: ScoringInput, opts: ScoringOpts): Suggestion[
 
   const alpha = alphaFor(N, opts.attemptsLeft, opts.attemptsMax)
   const L = words[0]!.length
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- this is a pure utility, not a React hook usage scenario.
   const numeric = useNumericPattern(L)
 
-  const results: { idx: number; eig: number; solveProb: number; expectedRemaining: number; score: number }[] = []
+  const results: {
+    idx: number
+    eig: number
+    solveProb: number
+    expectedRemaining: number
+    score: number
+  }[] = []
 
   // Sampling setup (for secrets distribution only) when approximating entropy
   const useSampling = N > sampleCutoff

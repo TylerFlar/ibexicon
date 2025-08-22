@@ -61,10 +61,7 @@ export function SuggestDebug() {
     }
   }, [length])
 
-  const candidateSet = useMemo(
-    () => (loaded ? new CandidateSet(loaded.words) : null),
-    [loaded?.words],
-  )
+  const candidateSet = useMemo(() => (loaded ? new CandidateSet(loaded.words) : null), [loaded])
 
   const tau = useMemo(() => {
     const trimmed = tauInput.trim()
@@ -115,8 +112,8 @@ export function SuggestDebug() {
           const mass = sum > 0 ? (priors[w] || 0) / sum : 1 / words.length
           const pat = feedbackPattern(g, w)
           const decoded = decodePattern(pat, L).join('')
-            ; (masses.set(decoded, (masses.get(decoded) || 0) + mass),
-              counts.set(decoded, (counts.get(decoded) || 0) + 1))
+          ;(masses.set(decoded, (masses.get(decoded) || 0) + mass),
+            counts.set(decoded, (counts.get(decoded) || 0) + 1))
         }
         const rows: PatternRow[] = [...masses.entries()].map(([pattern, pmass]) => {
           const count = counts.get(pattern) || 0
@@ -178,11 +175,7 @@ export function SuggestDebug() {
         </label>
         <label style={{ fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: 4 }}>
           Seed
-          <input
-            type="number"
-            value={seed}
-            onChange={(e) => setSeed(Number(e.target.value))}
-          />
+          <input type="number" value={seed} onChange={(e) => setSeed(Number(e.target.value))} />
         </label>
         <button
           onClick={onSuggest}
@@ -235,7 +228,9 @@ export function SuggestDebug() {
                       background: selectedGuess === s.guess ? '#eef' : undefined,
                     }}
                   >
-                    <td style={{ padding: '0.25rem 0.5rem', fontFamily: 'monospace' }}>{s.guess}</td>
+                    <td style={{ padding: '0.25rem 0.5rem', fontFamily: 'monospace' }}>
+                      {s.guess}
+                    </td>
                     <td style={{ padding: '0.25rem 0.5rem' }}>{s.eig.toFixed(3)}</td>
                     <td style={{ padding: '0.25rem 0.5rem' }}>{s.solveProb.toExponential(2)}</td>
                     <td style={{ padding: '0.25rem 0.5rem' }}>{s.alpha.toFixed(3)}</td>
@@ -274,7 +269,9 @@ export function SuggestDebug() {
                 <tbody>
                   {patternPreview.map((r) => (
                     <tr key={r.pattern}>
-                      <td style={{ padding: '0.25rem 0.5rem', fontFamily: 'monospace' }}>{r.pattern}</td>
+                      <td style={{ padding: '0.25rem 0.5rem', fontFamily: 'monospace' }}>
+                        {r.pattern}
+                      </td>
                       <td style={{ padding: '0.25rem 0.5rem' }}>{r.prob.toFixed(4)}</td>
                       <td style={{ padding: '0.25rem 0.5rem' }}>{r.count}</td>
                       <td style={{ padding: '0.25rem 0.5rem' }}>{r.estRemaining.toFixed(2)}</td>
