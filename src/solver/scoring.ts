@@ -171,7 +171,6 @@ export function suggestNext(input: ScoringInput, opts: ScoringOpts): Suggestion[
   // Sampling setup (for secrets distribution only) when approximating entropy
   const useSampling = N > sampleCutoff
   let sampleIdxs: number[] = []
-  let sampleWeights: number[] = []
   if (useSampling) {
     // Build cumulative distribution
     const cum = new Float64Array(N)
@@ -192,7 +191,6 @@ export function suggestNext(input: ScoringInput, opts: ScoringOpts): Suggestion[
         else hi = mid
       }
       sampleIdxs.push(lo)
-      sampleWeights.push(1) // implicit importance weight equal; we sampled according to p
     }
   }
 
@@ -216,18 +214,17 @@ export function suggestNext(input: ScoringInput, opts: ScoringOpts): Suggestion[
       }
     } else {
       const nSamp = sampleIdxs.length
+      const inc = 1 / sampleSize
       for (let k = 0; k < nSamp; k++) {
         const si = sampleIdxs[k]!
         const secret = words[si]!
         const pat: PatternValue = feedbackPattern(guess, secret)
         const key = numeric ? String(pat) : (pat as string)
         let a = accum[key]
-        if (!a) {
-          a = accum[key] = { mass: 0, massLog: 0, count: 0 }
-        }
-        const w = p[si]! // sampling probability
-        a.mass += w
-        if (w > 0) a.massLog += w * Math.log2(w)
+        if (!a) a = accum[key] = { mass: 0, massLog: 0, count: 0 }
+        a.mass += inc // approximate pattern probability
+        const w = p[si]!
+        if (w > 0) a.massLog += inc * Math.log2(w) // approximates Σ p_i log p_i via expectation
         a.count++
       }
     }
