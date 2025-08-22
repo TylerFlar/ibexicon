@@ -157,3 +157,6 @@ Icon?
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# Misc
+data/
