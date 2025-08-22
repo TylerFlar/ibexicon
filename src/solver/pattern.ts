@@ -41,7 +41,7 @@ export function decodePattern(p: PatternValue, length: number): number[] {
     }
     for (let i = 0; i < length; i++) {
       out[i] = v % 3;
-      v = (v / 3) | 0;
+      v = Math.trunc(v / 3);
     }
     return out;
   }
@@ -56,7 +56,7 @@ export function decodePattern(p: PatternValue, length: number): number[] {
     let v = p;
     for (let i = 0; i < length; i++) {
       out[i] = v % 3;
-      v = (v / 3) | 0;
+      v = Math.trunc(v / 3);
     }
   }
   return out;
