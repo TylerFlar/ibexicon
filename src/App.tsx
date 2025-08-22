@@ -1,5 +1,3 @@
-import React from 'react';
-
 function App() {
   return (
     <main style={{ fontFamily: 'system-ui, sans-serif', padding: '2rem' }}>

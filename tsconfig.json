@@ -1,4 +1,15 @@
 {
+  // Root TypeScript config orchestrating project references.
+  // Added compilerOptions here per setup request; each referenced tsconfig may also declare its own options.
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  },
   "files": [],
   "references": [
     { "path": "./tsconfig.app.json" },
