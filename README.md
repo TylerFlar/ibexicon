@@ -1,11 +1,23 @@
-# React + TypeScript + Vite
+# Ibexicon
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Any-length Wordle solver with smart explore/exploit, deployable on GitHub Pages.
 
-Currently, two official plugins are available:
+## Quickstart
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+npm install
+npm run dev
+```
+
+Then open the shown local URL (default http://localhost:5173) and you should see:
+
+Ibexicon: Hello Solver
+
+---
+
+Below are the original Vite + React + TypeScript template notes (kept for reference).
+
+## React + TypeScript + Vite Template Notes
 
 ## Expanding the ESLint configuration
 

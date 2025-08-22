@@ -138,3 +138,22 @@ dist
 
 # SvelteKit build / generate output
 .svelte-kit
+
+# Vite cache directory
+.vite
+
+# Dist output (already listed above for some frameworks, ensure present)
+dist
+
+# OS / Editor cruft
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+._*
+*.swp
+*.swo
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
