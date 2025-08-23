@@ -4,6 +4,7 @@ import type { SessionState } from '@/app/state/session'
 import { SolverWorkerClient, type ScoreResult } from '@/worker/client'
 import { loadWordlistSet } from '@/solver/data/loader'
 import { useToasts } from '@/app/components/Toaster'
+import { WhatIf } from '@/app/components/WhatIf'
 
 export interface SuggestPanelProps {
   session: SessionState
@@ -185,32 +186,65 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
             </thead>
             <tbody>
               {results.map((s) => (
-                <tr key={s.guess} className="odd:bg-neutral-50 dark:odd:bg-neutral-900/30">
-                  <td className="p-1 font-mono">{s.guess}</td>
-                  <td className="p-1 text-right tabular-nums">{s.eig.toFixed(3)}</td>
-                  <td className="p-1 text-right tabular-nums">{(s.solveProb * 100).toFixed(2)}%</td>
-                  <td className="p-1 text-right tabular-nums">{s.alpha.toFixed(3)}</td>
-                  <td className="p-1 text-right tabular-nums">{s.expectedRemaining.toFixed(1)}</td>
-                  <td className="p-1 text-right">
-                    <button
-                      type="button"
-                      className="px-2 py-0.5 rounded bg-neutral-300 dark:bg-neutral-700 hover:bg-neutral-400 dark:hover:bg-neutral-600 text-[0.65rem]"
-                      onClick={() => {
-                        // copy to active guess input (dispatch custom event consumed by App)
-                        window.dispatchEvent(
-                          new CustomEvent('ibx:set-guess-input', { detail: s.guess }),
-                        )
-                      }}
-                    >
-                      Try this
-                    </button>
-                  </td>
-                </tr>
+                <SuggestionWithWhatIf
+                  key={s.guess}
+                  suggestion={s}
+                  candidates={candidateWords}
+                  priors={wordData?.priors || {}}
+                />
               ))}
             </tbody>
           </table>
         </div>
       )}
     </div>
+  )
+}
+
+interface SuggestionWithWhatIfProps {
+  suggestion: ScoreResult['suggestions'][number]
+  candidates: string[]
+  priors: Record<string, number>
+}
+
+function SuggestionWithWhatIf({ suggestion, candidates, priors }: SuggestionWithWhatIfProps) {
+  const [show, setShow] = useState(false)
+  return (
+    <>
+      <tr className="odd:bg-neutral-50 dark:odd:bg-neutral-900/30">
+        <td className="p-1 font-mono">{suggestion.guess}</td>
+        <td className="p-1 text-right tabular-nums">{suggestion.eig.toFixed(3)}</td>
+        <td className="p-1 text-right tabular-nums">{(suggestion.solveProb * 100).toFixed(2)}%</td>
+        <td className="p-1 text-right tabular-nums">{suggestion.alpha.toFixed(3)}</td>
+        <td className="p-1 text-right tabular-nums">{suggestion.expectedRemaining.toFixed(1)}</td>
+        <td className="p-1 text-right flex flex-col gap-1 items-end">
+          <button
+            type="button"
+            className="px-2 py-0.5 rounded bg-neutral-300 dark:bg-neutral-700 hover:bg-neutral-400 dark:hover:bg-neutral-600 text-[0.65rem]"
+            onClick={() => {
+              window.dispatchEvent(
+                new CustomEvent('ibx:set-guess-input', { detail: suggestion.guess }),
+              )
+            }}
+          >
+            Try this
+          </button>
+          <button
+            type="button"
+            className="px-2 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700 text-[0.55rem]"
+            onClick={() => setShow((s) => !s)}
+          >
+            {show ? 'Hide what-if' : 'What if…'}
+          </button>
+        </td>
+      </tr>
+      {show && (
+        <tr>
+          <td colSpan={6} className="p-2">
+            <WhatIf guess={suggestion.guess} candidates={candidates} priors={priors} />
+          </td>
+        </tr>
+      )}
+    </>
   )
 }
