@@ -15,6 +15,26 @@ Ibexicon: Hello Solver
 
 ---
 
+## Evaluation (Milestone 7 Scaffolding)
+
+Simulation tooling for benchmarking solver policies is being built. A scaffolded CLI exists now and will soon run full parallel evaluations with prior‑weighted secret sampling.
+
+Run with explicit parameters (lengths 4–8, 1000 trials each, 6 attempts, four policies):
+
+```bash
+npm run eval:run -- --lengths 4,5,6,7,8 --trials 1000 --attempts 6 --policies composite,pure-eig,pure-solve,unique-letters
+```
+
+CI / smoke mode (short, deterministic):
+
+```bash
+npm run eval:ci
+```
+
+Planned outputs (future work) will appear in `eval/results/` as timestamped JSON + CSV including git SHA and aggregated metrics.
+
+---
+
 ## Wordlists from en-full.txt
 
 Generates per-length English word lists and Empirical Bayes (EB) prior probability files from a single corpus file via a streaming builder.

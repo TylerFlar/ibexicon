@@ -14,7 +14,9 @@
     "typecheck": "tsc --noEmit",
     "build:data": "node scripts/data/build-from-en-full.mjs",
     "clean:data": "rimraf public/wordlists/en/* || true",
-    "validate:data": "node scripts/data/validate.mjs"
+    "validate:data": "node scripts/data/validate.mjs",
+    "eval:run": "tsx eval/sim/cli.ts",
+    "eval:ci": "tsx eval/sim/cli.ts --lengths 5 --trials 50 --attempts 6 --policies composite --concurrency 2"
   },
   "dependencies": {
     "react": "^19.1.1",
@@ -45,6 +47,7 @@
     "prettier": "^3.6.2",
     "rimraf": "^6.0.1",
     "tailwindcss": "^3.4.14",
+    "tsx": "^4.20.4",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.40.0",
     "vite": "^7.1.2",
