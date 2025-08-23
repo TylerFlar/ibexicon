@@ -54,7 +54,7 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
     return buildCandidates(wordData.words, history)
   }, [wordData, history])
 
-  const candidateWords = candidates?.getAliveWords() ?? []
+  const candidateWords = useMemo(() => candidates?.getAliveWords() ?? [], [candidates])
   const alpha = useMemo(() => {
     if (!candidates) return null
     return alphaFor(candidateWords.length, attemptsLeft, attemptsMax)

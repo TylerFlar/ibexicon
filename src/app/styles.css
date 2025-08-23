@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind base, components, and utilities are imported in the global stylesheet (e.g., src/styles.css); removed here to avoid 'Unknown at rule @tailwind' in component scope. */
+/* Expanded Tailwind utility classes below to remove @apply so this file compiles without Tailwind processing. */
 
 /* CSS Variables for tile colors (normal + colorblind override) */
 :root {
@@ -18,33 +17,99 @@
 }
 
 html, body, #root {
-  @apply h-full min-h-screen;
+  height: 100%;
+  min-height: 100vh;
 }
 
 body {
-  @apply antialiased text-neutral-800 dark:text-neutral-100 bg-neutral-50 dark:bg-neutral-900 m-0 font-sans;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #262626; /* neutral-800 */
+  background-color: #fafafa; /* neutral-50 */
+  margin: 0;
   font-family: system-ui, ui-sans-serif, sans-serif;
 }
 
+.dark body {
+  color: #f5f5f5; /* neutral-100 */
+  background-color: #171717; /* neutral-900 */
+}
+
 /* App shell layout */
-.app-shell { @apply min-h-dvh flex flex-col md:flex-row; }
-.app-sidebar { @apply w-full md:w-80 shrink-0 border-b md:border-b-0 md:border-r border-neutral-200 dark:border-neutral-700 bg-white/70 dark:bg-neutral-900/70 backdrop-blur; }
-.app-main { @apply flex-1 overflow-y-auto; }
+.app-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 768px) {
+  .app-shell { flex-direction: row; }
+}
+
+.app-sidebar {
+  width: 100%;
+  flex-shrink: 0;
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-right-width: 0;
+  border-right-style: solid;
+  border-color: #e5e5e5; /* neutral-200 */
+  background-color: rgba(255, 255, 255, 0.7);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+@media (min-width: 768px) {
+  .app-sidebar {
+    width: 20rem; /* w-80 */
+    border-bottom-width: 0;
+    border-right-width: 1px;
+  }
+}
+.dark .app-sidebar {
+  border-color: #404040; /* neutral-700 */
+  background-color: rgba(23, 23, 23, 0.7); /* neutral-900/70 */
+}
+
+.app-main {
+  flex: 1 1 0%;
+  overflow-y: auto;
+}
 
 /* Scrollbar subtle styling */
 *::-webkit-scrollbar { width: 10px; height: 10px; }
-*::-webkit-scrollbar-track { @apply bg-transparent; }
-*::-webkit-scrollbar-thumb { @apply bg-neutral-300 dark:bg-neutral-700 rounded; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background-color: #d4d4d4; /* neutral-300 */
+  border-radius: 0.25rem;
+}
+.dark *::-webkit-scrollbar-thumb {
+  background-color: #404040; /* neutral-700 */
+}
 
 /* Tile component baseline (data-state cycling) */
 .tile {
-  @apply inline-flex items-center justify-center font-bold rounded-sm uppercase select-none align-middle text-base md:text-lg tracking-wide;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  border-radius: 0.125rem; /* rounded-sm */
+  text-transform: uppercase;
+  user-select: none;
+  vertical-align: middle;
+  font-size: 1rem; /* text-base */
+  line-height: 1.5rem;
+  letter-spacing: 0.025em; /* tracking-wide */
   width: var(--tile-size, 3rem);
   height: var(--tile-size, 3rem);
   background: var(--tile-bg, var(--tile-bg-absent));
   color: var(--tile-fg);
   border: 2px solid var(--tile-border);
   transition: background-color 150ms, transform 150ms;
+}
+@media (min-width: 768px) {
+  .tile {
+    font-size: 1.125rem; /* text-lg */
+    line-height: 1.75rem;
+  }
 }
 
 /* Automatically shrink tiles when length grows beyond typical 15 to keep within viewport width */
@@ -61,8 +126,12 @@ body {
 .tile[data-state='present'] { --tile-bg: var(--tile-bg-present); }
 .tile[data-state='correct'] { --tile-bg: var(--tile-bg-correct); }
 
-
-.tile:focus-visible { @apply outline outline-2 outline-offset-2 outline-blue-500; }
+.tile:focus-visible {
+  outline-style: solid;
+  outline-width: 2px;
+  outline-offset: 2px;
+  outline-color: #3b82f6; /* blue-500 */
+}
 
 /* Shake animation for invalid input */
 @keyframes ibx-shake {
@@ -75,9 +144,30 @@ body {
 .shake-invalid { animation: ibx-shake 400ms ease; }
 
 /* Utility for a responsive two-column page section inside main */
-.pane-grid { @apply grid gap-4 lg:gap-6 grid-cols-1 xl:grid-cols-2; }
+.pane-grid {
+  display: grid;
+  gap: 1rem; /* gap-4 */
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+@media (min-width: 1024px) {
+  .pane-grid { gap: 1.5rem; } /* gap-6 */
+}
+@media (min-width: 1280px) {
+  .pane-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
-/* Layer for any future component classes */
-@layer components {
-  .kbd-key { @apply inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded bg-neutral-200 dark:bg-neutral-700; }
+/* Component utility classes */
+.kbd-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.5rem; /* py-1 px-2 */
+  font-size: 0.75rem; /* text-xs */
+  line-height: 1rem;
+  font-weight: 500;
+  border-radius: 0.25rem; /* rounded */
+  background-color: #e5e5e5; /* neutral-200 */
+}
+.dark .kbd-key {
+  background-color: #404040; /* neutral-700 */
 }

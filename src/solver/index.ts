@@ -9,4 +9,3 @@ export {
 export { filterCandidatesArray, CandidateSet } from './filter'
 export { Bitset } from './bitset'
 export { suggestNext, alphaFor } from './scoring'
-export { suggestFromCandidates } from './suggest'
