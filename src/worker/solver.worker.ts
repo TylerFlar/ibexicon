@@ -1,5 +1,6 @@
 /* Solver Web Worker (module) providing scoring RPC with progress & cancellation */
 import { suggestNext, CanceledError } from '@/solver/scoring'
+import { letterPositionHeatmap, explainGuess } from '@/solver/analysis'
 
 // Message definitions (incoming)
 export type Msg =
@@ -21,6 +22,22 @@ export type Msg =
         chunkSize?: number
       }
     }
+  | {
+      id: number
+      type: 'analyze:heatmap'
+      payload: { words: string[]; priors: [string, number][] | Record<string, number> }
+    }
+  | {
+      id: number
+      type: 'analyze:guess'
+      payload: {
+        guess: string
+        words: string[]
+        priors: [string, number][] | Record<string, number>
+        sampleCutoff?: number
+        sampleSize?: number
+      }
+    }
   | { id: number; type: 'cancel' }
   | { id: number; type: 'dispose' }
 
@@ -29,6 +46,8 @@ export type OutMsg =
   | { id: number; type: 'warmup:ok' }
   | { id: number; type: 'progress'; p: number }
   | { id: number; type: 'result'; suggestions: unknown }
+  | { id: number; type: 'analyze:heatmap:result'; result: unknown }
+  | { id: number; type: 'analyze:guess:result'; result: unknown }
   | { id: number; type: 'canceled' }
   | { id: number; type: 'error'; error: { message: string; stack?: string } }
   | { id: number; type: 'disposed' }
@@ -42,6 +61,15 @@ function normalizePriors(priors: [string, number][] | Record<string, number>): R
     return out
   }
   return priors
+}
+
+function alignPriorsArray(words: string[], priorsRec: Record<string, number>): Float64Array {
+  const arr = new Float64Array(words.length)
+  for (let i = 0; i < words.length; i++) {
+    const v = priorsRec[words[i]!] // may be undefined
+    arr[i] = v && v > 0 && Number.isFinite(v) ? v : 0
+  }
+  return arr
 }
 
 // Simple noop to allow warmup verifying tree-shaking boundaries.
@@ -123,6 +151,39 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
           ;(self as unknown as Worker).postMessage(out)
           return
         }
+        const error = err instanceof Error ? { message: err.message, stack: err.stack } : { message: String(err) }
+        const out: OutMsg = { id: msg.id, type: 'error', error }
+        ;(self as unknown as Worker).postMessage(out)
+      }
+      return
+    }
+    case 'analyze:heatmap': {
+      try {
+        const priorsRecord = normalizePriors(msg.payload.priors)
+        const pArr = alignPriorsArray(msg.payload.words, priorsRecord)
+        const result = letterPositionHeatmap(msg.payload.words, pArr)
+        const out: OutMsg = { id: msg.id, type: 'analyze:heatmap:result', result }
+        ;(self as unknown as Worker).postMessage(out)
+      } catch (err) {
+        const error = err instanceof Error ? { message: err.message, stack: err.stack } : { message: String(err) }
+        const out: OutMsg = { id: msg.id, type: 'error', error }
+        ;(self as unknown as Worker).postMessage(out)
+      }
+      return
+    }
+    case 'analyze:guess': {
+      try {
+        const { guess, words, priors, sampleCutoff, sampleSize } = msg.payload
+        const priorsRecord = normalizePriors(priors)
+        const pArr = alignPriorsArray(words, priorsRecord)
+        const cutoff = sampleCutoff ?? 20000
+        const size = sampleSize ?? 5000
+        const useSample = words.length > cutoff
+        const sample = useSample ? { size } : undefined
+        const result = explainGuess(guess, words, pArr, sample)
+        const out: OutMsg = { id: msg.id, type: 'analyze:guess:result', result }
+        ;(self as unknown as Worker).postMessage(out)
+      } catch (err) {
         const error = err instanceof Error ? { message: err.message, stack: err.stack } : { message: String(err) }
         const out: OutMsg = { id: msg.id, type: 'error', error }
         ;(self as unknown as Worker).postMessage(out)
