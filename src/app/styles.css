@@ -171,3 +171,12 @@ body {
 .dark .kbd-key {
   background-color: #404040; /* neutral-700 */
 }
+
+/* Analysis panel styles (moved from inline styles) */
+.analysis-section { margin-top: 1.5rem; }
+.analysis-heading { margin: 0 0 0.5rem; font-size: 1rem; font-weight: 600; }
+.analysis-loading, .analysis-analyzing { font-size: 0.75rem; }
+.analysis-error { font-size: 0.75rem; color: crimson; }
+.analysis-inner { display: flex; flex-direction: column; gap: 0.75rem; }
+.analysis-stats-row { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.7rem; }
+.analysis-empty { font-size: 0.7rem; color: #666; }

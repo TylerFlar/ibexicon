@@ -6,6 +6,8 @@ import { ToastProvider, useToasts } from '@/app/components/Toaster'
 import { loadWordlistSet } from '@/solver/data/loader'
 import { buildCandidates, wouldEliminateAll } from '@/app/logic/constraints'
 import { SuggestPanel } from '@/app/components/SuggestPanel'
+import AnalysisPanel from '@/app/components/AnalysisPanel'
+import CandidateTable from '@/app/components/CandidateTable'
 import type { Trit } from '@/app/state/session'
 
 function AssistantAppInner() {
@@ -13,6 +15,34 @@ function AssistantAppInner() {
   const { settings, history, guessInput, setGuessInput, addGuess } = session
   const { push } = useToasts()
   const [started, setStarted] = useState(false)
+  // UI persistence (tab, candidate search placeholder for future)
+  const UI_KEY = 'ibexicon:ui'
+  const [activeTab, setActiveTab] = useState<'suggest' | 'analysis' | 'candidates'>(() => {
+    if (typeof window === 'undefined') return 'suggest'
+    try {
+      const raw = window.localStorage.getItem(UI_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed.tab === 'analysis' || parsed.tab === 'candidates' || parsed.tab === 'suggest') {
+          return parsed.tab
+        }
+      }
+    } catch {}
+    return 'suggest'
+  })
+  // persist tab choice
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const existing = window.localStorage.getItem(UI_KEY)
+      let obj: any = {}
+      if (existing) {
+        try { obj = JSON.parse(existing) } catch {}
+      }
+      obj.tab = activeTab
+      window.localStorage.setItem(UI_KEY, JSON.stringify(obj))
+    } catch {}
+  }, [activeTab])
 
   // Apply body classes
   useEffect(() => {
@@ -223,9 +253,51 @@ function AssistantAppInner() {
         {started && (
           <div className="flex flex-col items-center gap-6 w-full">
             <Keyboard history={history} onKey={handleKeyboardKey} disabled={!words} />
-            <section aria-label="Suggestions" className="w-full max-w-xl">
-              <SuggestPanel session={session} />
-            </section>
+            <div className="w-full max-w-5xl">
+              <div className="flex gap-2 mb-3 text-xs">
+                {[
+                  { key: 'suggest', label: 'Suggest' },
+                  { key: 'analysis', label: 'Analysis' },
+                  { key: 'candidates', label: 'Candidates' },
+                ].map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => setActiveTab(t.key as any)}
+                    className={
+                      'px-3 py-1 rounded-md font-medium border text-xs ' +
+                      (activeTab === t.key
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'bg-neutral-100 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-700')
+                    }
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              <div>
+                {activeTab === 'suggest' && (
+                  <section aria-label="Suggestions" className="w-full max-w-xl">
+                    <SuggestPanel session={session} />
+                  </section>
+                )}
+                {activeTab === 'analysis' && (
+                  <section aria-label="Analysis" className="w-full">
+                    <AnalysisPanel colorblind={settings.colorblind} />
+                  </section>
+                )}
+                {activeTab === 'candidates' && (
+                  <section aria-label="Candidates" className="w-full">
+                    {candidates && words && (
+                      <CandidateTable
+                        words={candidates.getAliveWords()}
+                        priors={{}} /* optionally pass renormalized priors here later */
+                      />
+                    )}
+                  </section>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </main>

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { buildCandidates } from '@/app/logic/constraints'
 import type { SessionState } from '@/app/state/session'
 import { SolverWorkerClient, type ScoreResult } from '@/worker/client'
 import { alphaFor } from '@/solver/scoring'
+import WhyThisGuess from '@/app/components/WhyThisGuess'
 import { loadWordlistSet } from '@/solver/data/loader'
 import { useToasts } from '@/app/components/Toaster'
 // Simplified; WhatIf / preview removed
@@ -80,6 +81,7 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
   const [progress, setProgress] = useState(0)
   const [inFlight, setInFlight] = useState(false)
   const [results, setResults] = useState<ScoreResult['suggestions'] | null>(null)
+  const [openWhy, setOpenWhy] = useState<Record<string, boolean>>({})
   const abortRef = useRef<AbortController | null>(null)
 
   const startScoring = useCallback(() => {
@@ -186,20 +188,43 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
             </thead>
             <tbody>
               {results.map((s) => (
-                <tr key={s.guess} className="odd:bg-neutral-50 dark:odd:bg-neutral-900/30">
-                  <td className="p-1 font-mono">
-                    <button
-                      type="button"
-                      className="underline-offset-2 hover:underline"
-                      onClick={() => window.dispatchEvent(new CustomEvent('ibx:set-guess-input', { detail: s.guess }))}
-                    >
-                      {s.guess}
-                    </button>
-                  </td>
-                  <td className="p-1 text-right tabular-nums">{s.eig.toFixed(2)}</td>
-                  <td className="p-1 text-right tabular-nums">{(s.solveProb * 100).toFixed(1)}</td>
-                  <td className="p-1 text-right tabular-nums">{s.expectedRemaining.toFixed(1)}</td>
-                </tr>
+                <React.Fragment key={s.guess}>
+                  <tr className="odd:bg-neutral-50 dark:odd:bg-neutral-900/30 align-top">
+                    <td className="p-1 font-mono">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="underline-offset-2 hover:underline"
+                          onClick={() => window.dispatchEvent(new CustomEvent('ibx:set-guess-input', { detail: s.guess }))}
+                        >
+                          {s.guess}
+                        </button>
+                        <button
+                          type="button"
+                          className="text-[0.6rem] px-1 py-0.5 rounded border border-neutral-400 dark:border-neutral-600 hover:bg-neutral-200 dark:hover:bg-neutral-700"
+                          onClick={() => setOpenWhy((m) => ({ ...m, [s.guess]: !m[s.guess] }))}
+                        >
+                          {openWhy[s.guess] ? 'Hide' : 'Why?'}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="p-1 text-right tabular-nums">{s.eig.toFixed(2)}</td>
+                    <td className="p-1 text-right tabular-nums">{(s.solveProb * 100).toFixed(1)}</td>
+                    <td className="p-1 text-right tabular-nums">{s.expectedRemaining.toFixed(1)}</td>
+                  </tr>
+                  {openWhy[s.guess] && candidateWords.length > 0 && clientRef.current && (
+                    <tr className="bg-neutral-50 dark:bg-neutral-900/40">
+                      <td colSpan={4} className="p-2">
+                        <WhyThisGuess
+                          guess={s.guess}
+                          words={candidateWords}
+                          priors={wordData?.priors || {}}
+                          client={clientRef.current}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>

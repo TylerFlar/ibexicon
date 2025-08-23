@@ -21,7 +21,7 @@ interface LoadedSet {
   priors: Record<string, number>
 }
 
-export const AnalysisPanel: React.FC = () => {
+export const AnalysisPanel: React.FC<{ colorblind?: boolean }> = ({ colorblind = false }) => {
   const session = useSession()
   const length = session.settings.length
   const history = session.history
@@ -126,31 +126,22 @@ export const AnalysisPanel: React.FC = () => {
   }, [aliveWords, renormPriorsRecord])
 
   return (
-    <section style={{ marginTop: '1.5rem' }}>
-      <h2 style={{ margin: '0 0 0.5rem' }}>Letter Position Heatmap</h2>
-      {loading && <div style={{ fontSize: '0.75rem' }}>Loading wordlist…</div>}
-      {error && <div style={{ color: 'crimson', fontSize: '0.75rem' }}>Error: {error}</div>}
+    <section className="analysis-section">
+      <h2 className="analysis-heading">Letter Position Heatmap</h2>
+      {loading && <div className="analysis-loading">Loading wordlist…</div>}
+      {error && <div className="analysis-error">Error: {error}</div>}
       {!loading && !error && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', fontSize: '0.7rem' }}>
-            <div>
-              <strong>Length:</strong> {length}
-            </div>
-            <div>
-              <strong>Candidates:</strong> {aliveWords.length.toLocaleString()}
-            </div>
-            <div>
-              <strong>Entropy H(S):</strong> {H.toFixed(3)} bits
-            </div>
-            <div>
-              <strong>Top letters:</strong>{' '}
-              {topLetters.map((t) => `${t.pos}:${t.letter}(${t.mass.toFixed(2)})`).join(' ')}
-            </div>
+        <div className="analysis-inner">
+          <div className="analysis-stats-row">
+            <div><strong>Length:</strong> {length}</div>
+            <div><strong>Candidates:</strong> {aliveWords.length.toLocaleString()}</div>
+            <div><strong>Entropy H(S):</strong> {H.toFixed(3)} bits</div>
+            <div><strong>Top letters:</strong> {topLetters.map((t) => `${t.pos}:${t.letter}(${t.mass.toFixed(2)})`).join(' ')}</div>
           </div>
-          {analyzing && <div style={{ fontSize: '0.7rem' }}>Analyzing…</div>}
-          {heatmap && !analyzing && <LetterHeatmap result={heatmap} />}
+          {analyzing && <div className="analysis-analyzing">Analyzing…</div>}
+          {heatmap && !analyzing && <LetterHeatmap result={heatmap} colorblind={colorblind} />}
           {!analyzing && !heatmap && aliveWords.length === 0 && (
-            <div style={{ fontSize: '0.7rem', color: '#666' }}>No candidates.</div>
+            <div className="analysis-empty">No candidates.</div>
           )}
         </div>
       )}

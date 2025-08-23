@@ -6,10 +6,11 @@ import { heatColor, clamp01 } from '@/app/utils/colors'
 export interface LetterHeatmapProps {
   result: HeatmapResult
   height?: number
+  colorblind?: boolean
 }
 
 // Build data array suitable for a scatter heatmap. Each cell => one point with z value as probability mass.
-export const LetterHeatmap: React.FC<LetterHeatmapProps> = ({ result, height = 420 }) => {
+export const LetterHeatmap: React.FC<LetterHeatmapProps> = ({ result, height = 420, colorblind = false }) => {
   const { length: L, mass, letterIndex } = result
 
   const data = useMemo(() => {
@@ -68,16 +69,34 @@ export const LetterHeatmap: React.FC<LetterHeatmapProps> = ({ result, height = 4
               const { cx, cy, payload } = props
               const zNorm = maxZ > 0 ? payload.z / maxZ : 0
               const fill = heatColor(clamp01(zNorm))
-              const cellSize = Math.min(32, Math.max(8, 560 / L)) // responsive-ish
+              const cellSize = Math.min(32, Math.max(8, 560 / L))
+              const mass = payload.z as number
               return (
-                <rect
-                  x={cx - cellSize / 2}
-                  y={cy - cellSize / 2}
-                  width={cellSize}
-                  height={cellSize}
-                  fill={fill}
-                  stroke="rgba(0,0,0,0.05)"
-                />
+                <g aria-label={`pos ${payload.pos} letter ${payload.letter} mass ${mass.toFixed(3)}`}>
+                  <rect
+                    x={cx - cellSize / 2}
+                    y={cy - cellSize / 2}
+                    width={cellSize}
+                    height={cellSize}
+                    fill={fill}
+                    stroke={colorblind ? 'black' : 'rgba(0,0,0,0.05)'}
+                    strokeWidth={colorblind ? 0.5 : 1}
+                  >
+                    <title>{`pos ${payload.pos}, letter ${payload.letter}, mass ${mass.toFixed(4)}`}</title>
+                  </rect>
+                  {colorblind && cellSize >= 16 && (
+                    <text
+                      x={cx}
+                      y={cy + 3}
+                      textAnchor="middle"
+                      fontSize={Math.max(8, cellSize * 0.42)}
+                      fill={zNorm > 0.6 ? '#000' : '#111'}
+                      style={{ pointerEvents: 'none' }}
+                    >
+                      {mass.toFixed(mass >= 0.1 ? 2 : 3).replace(/^0+/, '')}
+                    </text>
+                  )}
+                </g>
               )
             }}
           />
