@@ -15,6 +15,7 @@ export interface ScoringOpts {
   onProgress?: (percent: number) => void // optional progress callback (0..1)
   shouldCancel?: () => boolean // return true to request cancellation
   chunkSize?: number // secrets per chunk for progress/cancel checks (default 8000)
+  alphaOverride?: number | null // if provided (0..1), overrides dynamic alphaFor()
 }
 
 export interface Suggestion {
@@ -164,7 +165,10 @@ export function suggestNext(input: ScoringInput, opts: ScoringOpts): Suggestion[
     candidateIdxs = [...Array(N).keys()]
   }
 
-  const alpha = alphaFor(N, opts.attemptsLeft, opts.attemptsMax)
+  const alpha =
+    opts.alphaOverride !== undefined && opts.alphaOverride !== null
+      ? Math.max(0, Math.min(1, opts.alphaOverride))
+      : alphaFor(N, opts.attemptsLeft, opts.attemptsMax)
   const L = words[0]!.length
   // eslint-disable-next-line react-hooks/rules-of-hooks -- this is a pure utility, not a React hook usage scenario.
   const numeric = useNumericPattern(L)
