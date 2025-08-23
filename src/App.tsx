@@ -6,6 +6,7 @@ import { ControlsBar } from '@/app/components/ControlsBar'
 import { ToastProvider, useToasts } from '@/app/components/Toaster'
 import { loadWordlistSet } from '@/solver/data/loader'
 import { buildCandidates, wouldEliminateAll } from '@/app/logic/constraints'
+import { SuggestPanel } from '@/app/components/SuggestPanel'
 import type { Trit } from '@/app/state/session'
 
 function AssistantAppInner() {
@@ -143,16 +144,8 @@ function AssistantAppInner() {
         </section>
         <Keyboard history={history} onKey={handleKeyboardKey} disabled={!words} />
       </main>
-      <div className="hidden md:block w-80 shrink-0 border-l border-neutral-200 dark:border-neutral-800 p-4 space-y-4">
-        <h2 className="text-sm font-medium tracking-wide text-neutral-600 dark:text-neutral-300">
-          Suggestions
-        </h2>
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">
-          (Coming soon) Worker-based scoring results will appear here.
-        </p>
-        <div className="text-xs text-neutral-500 dark:text-neutral-400">
-          Current candidate count: {candidateCount.toLocaleString()}
-        </div>
+      <div className="hidden md:block w-96 shrink-0 border-l border-neutral-200 dark:border-neutral-800 p-4 space-y-4">
+        <SuggestPanel session={session} />
       </div>
     </div>
   )
