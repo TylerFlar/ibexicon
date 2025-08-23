@@ -1,4 +1,4 @@
-import { encodeTrits, type PatternValue } from './pattern'
+import { encodeTrits, type PatternValue } from './pattern.ts'
 
 // Trit meanings: 0=gray,1=yellow,2=green
 

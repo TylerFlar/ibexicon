@@ -1,7 +1,7 @@
-import { feedbackPattern } from '@/solver/feedback'
-import type { PatternValue } from '@/solver/pattern'
-import { useNumericPattern } from '@/solver/pattern'
-import { mulberry32 } from './random'
+import { feedbackPattern } from './feedback.ts'
+import type { PatternValue } from './pattern.ts'
+import { useNumericPattern } from './pattern.ts'
+import { mulberry32 } from './random.ts'
 
 export interface ScoringOpts {
   attemptsLeft: number

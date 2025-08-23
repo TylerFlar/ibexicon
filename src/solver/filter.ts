@@ -1,6 +1,6 @@
-import { feedbackPattern } from './feedback'
-import { type PatternValue, decodePattern } from './pattern'
-import { Bitset } from './bitset'
+import { feedbackPattern } from './feedback.ts'
+import { type PatternValue, decodePattern } from './pattern.ts'
+import { Bitset } from './bitset.ts'
 
 export function filterCandidatesArray(words: string[], guess: string, pat: PatternValue): string[] {
   const L = guess.length

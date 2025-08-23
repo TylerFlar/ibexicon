@@ -1,11 +1,11 @@
 import { parentPort, workerData } from 'worker_threads'
 import fs from 'node:fs'
 import path from 'node:path'
-import { CandidateSet } from '@/solver/filter'
-import { feedbackPattern } from '@/solver/feedback'
-import { encodeTrits } from '@/solver/pattern'
-import { suggestNext } from '@/solver/scoring'
-import { mulberry32 } from '@/solver/random'
+import { CandidateSet } from '../../src/solver/filter.ts'
+import { feedbackPattern } from '../../src/solver/feedback.ts'
+import { encodeTrits } from '../../src/solver/pattern.ts'
+import { suggestNext } from '../../src/solver/scoring.ts'
+import { mulberry32 } from '../../src/solver/random.ts'
 
 /** Policy identifiers supported by the simulator worker */
 export type Policy = 'composite' | 'pure-eig' | 'pure-solve' | 'unique-letters'
@@ -113,38 +113,6 @@ function pickUniqueLetters(words: string[], priors: Record<string, number>): str
   return best || words[0]!
 }
 
-// Suggestion under custom alpha override via monkey patching alphaFor if needed
-function suggestWithAlphaOverride(
-  words: string[],
-  priors: Record<string, number>,
-  attemptsLeft: number,
-  attemptsMax: number,
-  alphaOverride: number,
-): string {
-  // We emulate alpha override by temporarily computing with a fake attemptsLeft/size relation.
-  // Simpler: patch alphaFor? Instead we replicate minimal suggest logic by calling suggestNext
-  // and then replacing alpha used in scoring. For now easiest is to call suggestNext and then
-  // recompute ranking with overridden alpha.
-  const suggestions = suggestNext(
-    { words, priors },
-    {
-      attemptsLeft,
-      attemptsMax,
-      topK: words.length, // get all to recompute
-      sampleCutoff: 5000,
-      sampleSize: 3000,
-      tau: null,
-      seed: undefined,
-      prefilterLimit: 2000,
-    },
-  )
-  // suggestions sorted by original alpha mixture already, but we need to re-score using override.
-  // Re-run with alpha override: we need eig & solveProb already present.
-  const rescored = suggestions.map((s: any) => ({ ...s, score: alphaOverride * s.eig + (1 - alphaOverride) * s.solveProb }))
-  rescored.sort((a: any, b: any) => b.score - a.score || a.guess.localeCompare(b.guess))
-  return rescored[0]!.guess
-}
-
 function pickGuess(
   policy: Policy,
   words: string[],
@@ -161,9 +129,19 @@ function pickGuess(
       return s[0]?.guess || words[0]!
     }
     case 'pure-eig':
-      return suggestWithAlphaOverride(words, priors, attemptsLeft, attemptsMax, 1)
+      return (
+        suggestNext(
+          { words, priors },
+          { attemptsLeft, attemptsMax, topK: 1, sampleCutoff: 5000, sampleSize: 3000, tau: null, alphaOverride: 1 },
+        )[0]?.guess || words[0]!
+      )
     case 'pure-solve':
-      return suggestWithAlphaOverride(words, priors, attemptsLeft, attemptsMax, 0)
+      return (
+        suggestNext(
+          { words, priors },
+          { attemptsLeft, attemptsMax, topK: 1, sampleCutoff: 5000, sampleSize: 3000, tau: null, alphaOverride: 0 },
+        )[0]?.guess || words[0]!
+      )
     case 'unique-letters':
       return pickUniqueLetters(words, priors)
   }

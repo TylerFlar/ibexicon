@@ -1,5 +1,5 @@
-import { CandidateSet } from '@/solver/filter'
-import { suggestNext, type Suggestion } from '@/solver/scoring'
+import { CandidateSet } from './filter.ts'
+import { suggestNext, type Suggestion } from './scoring.ts'
 
 export interface SuggestInput {
   candidates: CandidateSet

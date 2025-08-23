@@ -1,0 +1,39 @@
+{
+  "meta": {
+    "timestamp": "2025-08-23T19:06:09.325Z",
+    "gitSha": "c2d0912",
+    "lengths": [
+      4
+    ],
+    "policies": [
+      "composite",
+      "pure-eig"
+    ],
+    "trialsPerShard": 3,
+    "attempts": 6,
+    "concurrency": 2,
+    "baseSeed": 12345
+  },
+  "rows": [
+    {
+      "policy": "composite",
+      "length": 4,
+      "trials": 3,
+      "solved": 2,
+      "failRate": 0.3333333333333333,
+      "avgAttempts": 2.5,
+      "avgTimeMs": 791,
+      "avgFinalS_whenFailed": 5
+    },
+    {
+      "policy": "pure-eig",
+      "length": 4,
+      "trials": 3,
+      "solved": 3,
+      "failRate": 0,
+      "avgAttempts": 4.333333333333333,
+      "avgTimeMs": 974,
+      "avgFinalS_whenFailed": 0
+    }
+  ]
+}

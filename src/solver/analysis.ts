@@ -1,4 +1,4 @@
-import { feedbackPattern } from '@/solver/feedback'
+import { feedbackPattern } from './feedback.ts'
 
 // --- Heatmap ---
 export interface HeatmapResult {
