@@ -1,11 +1,5 @@
 export { feedbackPattern, feedbackTrits } from './feedback.ts'
-export {
-  encodeTrits,
-  decodePattern,
-  useNumericPattern,
-  MAX_NUMERIC_TRITS,
-  patternEquals,
-} from './pattern.ts'
+export { encodeTrits, decodePattern, isNumericPattern, MAX_NUMERIC_TRITS, patternEquals } from './pattern.ts'
 export { filterCandidatesArray, CandidateSet } from './filter.ts'
 export { Bitset } from './bitset.ts'
 export { suggestNext, alphaFor } from './scoring.ts'

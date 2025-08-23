@@ -8,7 +8,6 @@ import { buildCandidates, wouldEliminateAll } from '@/app/logic/constraints'
 import { SuggestPanel } from '@/app/components/SuggestPanel'
 import { lazy, Suspense } from 'react'
 import { PrecomputeBanner } from '@/app/components/PrecomputeBanner'
-import { CacheDebug } from '@/app/components/CacheDebug'
 import { DebugPage } from '@/app/components/DebugPage'
 import { SolverWorkerClient } from '@/worker/client'
 const AnalysisPanel = lazy(() => import('@/app/components/AnalysisPanel'))
@@ -17,18 +16,15 @@ const LazyLeaderboard = lazy(() => import('@/app/components/Leaderboard'))
 import type { Trit } from '@/app/state/session'
 
 function AssistantAppInner() {
-  // Secret route detection: query ?__debug=1 or hash #__debug
-  const secretDebug = (() => {
-    if (typeof window === 'undefined') return false
-    return /[?&]__debug=1/.test(window.location.search) || window.location.hash === '#__debug'
-  })()
-  if (secretDebug) {
-    return <DebugPage />
-  }
+  // Hooks first (no conditional use) then derive secret flag for conditional render.
   const session = useSession()
   const { settings, history, guessInput, setGuessInput, addGuess } = session
   const { push } = useToasts()
   const [started, setStarted] = useState(false)
+  const secretDebug = useMemo(() => {
+    if (typeof window === 'undefined') return false
+    return /[?&]__debug=1/.test(window.location.search) || window.location.hash === '#__debug'
+  }, [])
   // UI persistence (tab, candidate search placeholder for future)
   const UI_KEY = 'ibexicon:ui'
   const [activeTab, setActiveTab] = useState<'suggest' | 'analysis' | 'candidates' | 'leaderboard'>(() => {
@@ -110,7 +106,6 @@ function AssistantAppInner() {
   const workerClientRef = useRef<SolverWorkerClient | null>(null)
   if (!workerClientRef.current) workerClientRef.current = new SolverWorkerClient()
   const workerClient = workerClientRef.current
-  const candidateCount = candidates?.getAliveWords().length ?? 0
 
   const [pendingConfirm, setPendingConfirm] = useState<null | {
     kind: 'offlist' | 'eliminate'
@@ -205,6 +200,7 @@ function AssistantAppInner() {
     </div>
   ))
 
+  if (secretDebug) return <DebugPage />
   return (
     <div className="flex flex-col min-h-dvh">
       <main className="flex-1 flex flex-col items-center gap-10 p-4 md:p-8 w-full max-w-5xl mx-auto">
@@ -301,16 +297,8 @@ function AssistantAppInner() {
               </div>
             )}
           </div>
-          {started && (
-            <div className="text-xs text-neutral-500 dark:text-neutral-400 text-center">
-              {loadingWords && <span>Loading…</span>}
-              {!loadingWords && words && (
-                <span>
-                  {words.length.toLocaleString()} words • Candidates:{' '}
-                  {candidateCount.toLocaleString()}
-                </span>
-              )}
-            </div>
+          {started && loadingWords && (
+            <div className="text-xs text-neutral-500 dark:text-neutral-400 text-center">Loading…</div>
           )}
         </section>
         {started && (
@@ -318,29 +306,12 @@ function AssistantAppInner() {
             <Keyboard history={history} onKey={handleKeyboardKey} disabled={!words} />
             <div className="w-full max-w-5xl">
               <PrecomputeBanner client={workerClient} length={settings.length} words={words} />
-              <CacheDebug client={workerClient} length={settings.length} />
-              <div className="flex justify-center flex-wrap gap-2 mb-4 text-xs">
-                {[
-                  { key: 'suggest', label: 'Suggest' },
-                  { key: 'analysis', label: 'Analysis' },
-                  { key: 'candidates', label: 'Candidates' },
-                  { key: 'leaderboard', label: 'Leaderboard' },
-                ].map((t) => (
-                  <button
-                    key={t.key}
-                    type="button"
-                    onClick={() => setActiveTab(t.key as any)}
-                    className={
-                      'px-3 py-1 rounded-md font-medium border text-xs ' +
-                      (activeTab === t.key
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-neutral-100 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-700')
-                    }
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
+              {/* Primary nav: Suggest main; secondary panels behind a disclosure */}
+              <TabBar
+                activeTab={activeTab}
+                onChange={(t) => setActiveTab(t)}
+                onForceSuggest={() => setActiveTab('suggest')}
+              />
               <div>
                 {activeTab === 'suggest' && (
                   <section aria-label="Suggestions" className="w-full max-w-xl mx-auto">
@@ -399,3 +370,66 @@ function App() {
 }
 
 export default App
+
+// Lightweight tab bar component with secondary panels hidden behind a toggle
+interface TabBarProps {
+  activeTab: 'suggest' | 'analysis' | 'candidates' | 'leaderboard'
+  onChange: (t: TabBarProps['activeTab']) => void
+  onForceSuggest: () => void
+}
+
+function TabBar({ activeTab, onChange, onForceSuggest }: TabBarProps) {
+  const [moreOpen, setMoreOpen] = useState(false)
+  // If user collapses more while a secondary tab is active, revert to suggest.
+  useEffect(() => {
+    if (!moreOpen && activeTab !== 'suggest') onForceSuggest()
+  }, [moreOpen, activeTab, onForceSuggest])
+  return (
+    <div className="flex justify-center flex-wrap gap-2 mb-4 text-xs items-center">
+      <button
+        type="button"
+        onClick={() => onChange('suggest')}
+        className={
+          'px-3 py-1 rounded-md font-medium border ' +
+          (activeTab === 'suggest'
+            ? 'bg-indigo-600 text-white border-indigo-600'
+            : 'bg-neutral-100 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-700')
+        }
+      >
+        Suggest
+      </button>
+      <button
+        type="button"
+        onClick={() => setMoreOpen((v) => !v)}
+        className="px-2 py-1 rounded-md border bg-neutral-50 dark:bg-neutral-900 border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+        aria-expanded={moreOpen}
+        aria-controls="secondary-panels"
+      >
+        {moreOpen ? 'Hide' : 'More'}
+      </button>
+      {moreOpen && (
+        <div id="secondary-panels" className="flex gap-2 flex-wrap">
+          {[
+            { key: 'analysis', label: 'Analysis' },
+            { key: 'candidates', label: 'Candidates' },
+            { key: 'leaderboard', label: 'Leaderboard' },
+          ].map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => onChange(t.key as any)}
+              className={
+                'px-2 py-1 rounded border font-medium ' +
+                (activeTab === t.key
+                  ? 'bg-indigo-500 text-white border-indigo-500'
+                  : 'bg-neutral-100 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700')
+              }
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

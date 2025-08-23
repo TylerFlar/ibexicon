@@ -5,7 +5,7 @@ export const MAX_NUMERIC_TRITS = 33 // because 3^33 < 2^53 (safe integer) and 3^
 /** Return true if a word length should use numeric (base-3 packed) representation */
 // Not a React hook; name chosen for semantic clarity. Disable hook lint rule.
 
-export function useNumericPattern(length: number): boolean {
+export function isNumericPattern(length: number): boolean {
   return length <= MAX_NUMERIC_TRITS
 }
 
@@ -15,8 +15,8 @@ export function useNumericPattern(length: number): boolean {
  */
 export function encodeTrits(trits: number[]): PatternValue {
   const L = trits.length
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  if (useNumericPattern(L)) {
+   
+  if (isNumericPattern(L)) {
     let value = 0
     let mul = 1
     for (let i = 0; i < L; i++) {
@@ -34,8 +34,8 @@ export function encodeTrits(trits: number[]): PatternValue {
 /** Decode a pattern value back into its trit array of given length */
 export function decodePattern(p: PatternValue, length: number): number[] {
   const out = new Array<number>(length)
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  if (useNumericPattern(length)) {
+   
+  if (isNumericPattern(length)) {
     let v: number
     if (typeof p === 'number') {
       v = p

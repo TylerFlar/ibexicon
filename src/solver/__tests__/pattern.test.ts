@@ -1,12 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import {
-  encodeTrits,
-  decodePattern,
-  useNumericPattern,
-  MAX_NUMERIC_TRITS,
-  patternEquals,
-} from '../pattern'
-/* eslint-disable react-hooks/rules-of-hooks */
+import { encodeTrits, decodePattern, isNumericPattern, MAX_NUMERIC_TRITS, patternEquals } from '../pattern'
+ 
 
 // Simple deterministic PRNG for reproducibility
 function mulberry32(seed: number) {
@@ -40,10 +34,10 @@ describe('pattern encode/decode round-trip', () => {
         expect(decoded).toEqual(trits)
         if (L <= MAX_NUMERIC_TRITS) {
           expect(typeof encoded).toBe('number')
-          expect(useNumericPattern(L)).toBe(true)
+          expect(isNumericPattern(L)).toBe(true)
         } else {
           expect(typeof encoded).toBe('string')
-          expect(useNumericPattern(L)).toBe(false)
+          expect(isNumericPattern(L)).toBe(false)
         }
       }
     }

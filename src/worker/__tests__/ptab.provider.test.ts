@@ -73,7 +73,7 @@ describe('pattern provider', () => {
       },
     }
     const asset = buildBinaryAsset(words, 3)
-    global.fetch = vi.fn(async (url: RequestInfo) => {
+  global.fetch = vi.fn(async (url: any) => {
       const u = String(url)
       if (u.endsWith(`ibxptab-${L}.bin`)) {
         return new Response(asset.buffer, { status: 200 })

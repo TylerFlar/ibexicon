@@ -36,7 +36,8 @@ const env: IDBEnv = {
   })(),
 }
 
-async function withStore(mode: IDBTransactionMode): Promise<IDBObjectStore> {
+type IDBMode = 'readonly' | 'readwrite'
+async function withStore(mode: IDBMode): Promise<IDBObjectStore> {
   const db = await env.dbPromise
   return db.transaction(STORE, mode).objectStore(STORE)
 }

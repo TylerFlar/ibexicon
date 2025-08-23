@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+/* eslint-disable no-console */
 /**
  * Precompute seed guess pattern tables and emit compact binary assets:
  *   public/wordlists/en/ibxptab-<L>.bin

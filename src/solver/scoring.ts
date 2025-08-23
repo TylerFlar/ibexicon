@@ -1,6 +1,6 @@
 import { feedbackPattern } from './feedback.ts'
 import type { PatternValue } from './pattern.ts'
-import { useNumericPattern } from './pattern.ts'
+import { isNumericPattern } from './pattern.ts'
 import { mulberry32 } from './random.ts'
 
 export interface ScoringOpts {
@@ -173,8 +173,8 @@ export function suggestNext(input: ScoringInput, opts: ScoringOpts): Suggestion[
       ? Math.max(0, Math.min(1, opts.alphaOverride))
       : alphaFor(N, opts.attemptsLeft, opts.attemptsMax)
   const L = words[0]!.length
-  // eslint-disable-next-line react-hooks/rules-of-hooks -- this is a pure utility, not a React hook usage scenario.
-  const numeric = useNumericPattern(L)
+   
+  const numeric = isNumericPattern(L)
 
   const results: {
     idx: number
@@ -361,7 +361,7 @@ export async function suggestNextWithProvider(
       ? Math.max(0, Math.min(1, opts.alphaOverride))
       : alphaFor(N, opts.attemptsLeft, opts.attemptsMax)
   const L = words[0]!.length
-  const numeric = useNumericPattern(L)
+  const numeric = isNumericPattern(L)
   const useSampling = N > sampleCutoff
   let sampleIdxs: number[] = []
   if (useSampling) {
