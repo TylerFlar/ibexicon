@@ -12,6 +12,9 @@ export interface ScoringOpts {
   tau?: number | null // optional runtime temperature; if null -> no shaping
   seed?: number // optional RNG seed for sampling
   prefilterLimit?: number // when |S| is huge, score only top M (default 2000)
+  onProgress?: (percent: number) => void // optional progress callback (0..1)
+  shouldCancel?: () => boolean // return true to request cancellation
+  chunkSize?: number // secrets per chunk for progress/cancel checks (default 8000)
 }
 
 export interface Suggestion {
@@ -122,6 +125,9 @@ export function suggestNext(input: ScoringInput, opts: ScoringOpts): Suggestion[
   const sampleCutoff = opts.sampleCutoff ?? 5000
   const sampleSize = opts.sampleSize ?? 3000
   const prefilterLimit = opts.prefilterLimit ?? 2000
+  const chunkSize = opts.chunkSize && opts.chunkSize > 0 ? opts.chunkSize : DEFAULT_CHUNK_SIZE
+  const reportProgress = opts.onProgress
+  const checkCancel = opts.shouldCancel
   // Build renormalized prior array over S
   const p = new Float64Array(N)
   let sum = 0
@@ -198,37 +204,55 @@ export function suggestNext(input: ScoringInput, opts: ScoringOpts): Suggestion[
   }
 
   // Map: pattern -> accum; we use JS object (string keys) even when numeric to avoid Map overhead on small sets
+  // Progress accounting: total chunks across all guesses * secrets iteration
+  const perGuessSecretCount = (N > sampleCutoff) ? sampleSize : N
+  const chunksPerGuess = Math.ceil(perGuessSecretCount / chunkSize)
+  const totalChunks = candidateIdxs.length * chunksPerGuess
+  let processedChunks = 0
+
   for (const guessIdx of candidateIdxs) {
     const guess = words[guessIdx]!
     const accum: Record<string, PatternAccum> = Object.create(null)
     if (!useSampling) {
-      for (let si = 0; si < N; si++) {
-        const secret = words[si]!
-        const pat: PatternValue = feedbackPattern(guess, secret)
-        const key = numeric ? String(pat) : (pat as string) // numeric path stringified
-        let a = accum[key]
-        if (!a) {
-          a = accum[key] = { mass: 0, massLog: 0, count: 0 }
+      for (let start = 0; start < N; start += chunkSize) {
+        const end = Math.min(N, start + chunkSize)
+        for (let si = start; si < end; si++) {
+          const secret = words[si]!
+          const pat: PatternValue = feedbackPattern(guess, secret)
+          const key = numeric ? String(pat) : (pat as string) // numeric path stringified
+          let a = accum[key]
+          if (!a) {
+            a = accum[key] = { mass: 0, massLog: 0, count: 0 }
+          }
+          const w = p[si]!
+          a.mass += w
+          if (w > 0) a.massLog += w * Math.log2(w)
+          a.count++
         }
-        const w = p[si]!
-        a.mass += w
-        if (w > 0) a.massLog += w * Math.log2(w)
-        a.count++
+        processedChunks++
+        if (reportProgress) reportProgress(processedChunks / totalChunks)
+        if (checkCancel && checkCancel()) throw new CanceledError()
       }
     } else {
       const nSamp = sampleIdxs.length
       const inc = 1 / sampleSize
-      for (let k = 0; k < nSamp; k++) {
-        const si = sampleIdxs[k]!
-        const secret = words[si]!
-        const pat: PatternValue = feedbackPattern(guess, secret)
-        const key = numeric ? String(pat) : (pat as string)
-        let a = accum[key]
-        if (!a) a = accum[key] = { mass: 0, massLog: 0, count: 0 }
-        a.mass += inc // approximate pattern probability
-        const w = p[si]!
-        if (w > 0) a.massLog += inc * Math.log2(w) // approximates Σ p_i log p_i via expectation
-        a.count++
+      for (let start = 0; start < nSamp; start += chunkSize) {
+        const end = Math.min(nSamp, start + chunkSize)
+        for (let k = start; k < end; k++) {
+          const si = sampleIdxs[k]!
+          const secret = words[si]!
+          const pat: PatternValue = feedbackPattern(guess, secret)
+            const key = numeric ? String(pat) : (pat as string)
+          let a = accum[key]
+          if (!a) a = accum[key] = { mass: 0, massLog: 0, count: 0 }
+          a.mass += inc // approximate pattern probability
+          const w = p[si]!
+          if (w > 0) a.massLog += inc * Math.log2(w) // approximates Σ p_i log p_i via expectation
+          a.count++
+        }
+        processedChunks++
+        if (reportProgress) reportProgress(processedChunks / totalChunks)
+        if (checkCancel && checkCancel()) throw new CanceledError()
       }
     }
     // Compute expected entropy after guess
@@ -262,3 +286,12 @@ export function suggestNext(input: ScoringInput, opts: ScoringOpts): Suggestion[
     expectedRemaining: r.expectedRemaining,
   }))
 }
+
+export class CanceledError extends Error {
+  constructor() {
+    super('canceled')
+    this.name = 'CanceledError'
+  }
+}
+
+export const DEFAULT_CHUNK_SIZE = 8000
