@@ -1,0 +1,228 @@
+// Session state & reducer for Assistant mode
+// This file defines a strict state machine for an assistant session
+// including localStorage persistence with an idle-throttled writer.
+
+export type Trit = 0 | 1 | 2 // 0 gray,1 yellow,2 green
+
+export interface GuessEntry {
+  guess: string
+  trits: Trit[]
+}
+
+export interface Settings {
+  length: number
+  attemptsMax: number
+  colorblind: boolean
+  tauAuto: boolean
+  tau?: number
+  topK: number
+}
+
+export interface SessionState {
+  settings: Settings
+  history: GuessEntry[]
+  guessInput: string
+}
+
+export type Action =
+  | { type: 'setLength'; length: number }
+  | { type: 'setGuessInput'; value: string }
+  | { type: 'addGuess'; payload: { guess: string; trits: Trit[] } }
+  | { type: 'editTrit'; payload: { row: number; col: number; value: Trit } }
+  | { type: 'undo' }
+  | { type: 'clear' }
+  | { type: 'toggleColorblind' }
+  | { type: 'setTauAuto'; value: boolean }
+  | { type: 'setTau'; value: number }
+  | { type: 'setTopK'; value: number }
+  | { type: 'setAttemptsMax'; value: number }
+
+export function initialState(length: number): SessionState {
+  return {
+    settings: {
+      length,
+      attemptsMax: 10,
+      colorblind: false,
+      tauAuto: true,
+      tau: undefined,
+      topK: 10,
+    },
+    history: [],
+    guessInput: '',
+  }
+}
+
+function sanitizeGuessInput(value: string, length: number): string {
+  // Accept only lowercase a-z; trim elsewhere; cut to length
+  const cleaned = value.toLowerCase().replace(/[^a-z]/g, '')
+  return cleaned.slice(0, length)
+}
+
+export function reducer(state: SessionState, action: Action): SessionState {
+  switch (action.type) {
+    case 'setLength': {
+      const length = Math.max(1, Math.min(64, Math.floor(action.length))) // arbitrary upper bound
+      if (length === state.settings.length) return state
+      // Changing length invalidates existing guesses; clear history per assumption.
+      return {
+        settings: { ...state.settings, length },
+        history: [],
+        guessInput: '',
+      }
+    }
+    case 'setGuessInput': {
+      const guessInput = sanitizeGuessInput(action.value, state.settings.length)
+      if (guessInput === state.guessInput) return state
+      return { ...state, guessInput }
+    }
+    case 'addGuess': {
+      const { guess, trits } = action.payload
+      if (
+        guess.length !== state.settings.length ||
+        trits.length !== state.settings.length
+      ) {
+        return state // invalid lengths ignored silently; could throw if preferred
+      }
+      // Ensure trits are 0|1|2
+      if (!trits.every((t) => t === 0 || t === 1 || t === 2)) return state
+      return {
+        ...state,
+        history: [...state.history, { guess, trits: [...trits] }],
+        guessInput: '',
+      }
+    }
+    case 'editTrit': {
+      const { row, col, value } = action.payload
+      if (!(value === 0 || value === 1 || value === 2)) return state
+      if (row < 0 || row >= state.history.length) return state
+      const entry = state.history[row]
+      if (!entry) return state
+      if (col < 0 || col >= entry.trits.length) return state
+      const newEntry: GuessEntry = {
+        guess: entry.guess,
+        trits: entry.trits.map((t, i) => (i === col ? value : t)),
+      }
+      const history = state.history.map((h, i) => (i === row ? newEntry : h))
+      return { ...state, history }
+    }
+    case 'undo': {
+      if (state.history.length === 0) return state
+      return { ...state, history: state.history.slice(0, -1) }
+    }
+    case 'clear': {
+      return { ...state, history: [], guessInput: '' }
+    }
+    case 'toggleColorblind': {
+      return {
+        ...state,
+        settings: { ...state.settings, colorblind: !state.settings.colorblind },
+      }
+    }
+    case 'setTauAuto': {
+      const tauAuto = !!action.value
+      return {
+        ...state,
+        settings: {
+          ...state.settings,
+          tauAuto,
+          tau: tauAuto ? undefined : state.settings.tau,
+        },
+      }
+    }
+    case 'setTau': {
+      const tau = Number.isFinite(action.value) ? action.value : state.settings.tau
+      return {
+        ...state,
+        settings: { ...state.settings, tau, tauAuto: false },
+      }
+    }
+    case 'setTopK': {
+      const topK = Math.max(1, Math.min(1000, Math.floor(action.value)))
+      return { ...state, settings: { ...state.settings, topK } }
+    }
+    case 'setAttemptsMax': {
+      const attemptsMax = Math.max(1, Math.min(100, Math.floor(action.value)))
+      return { ...state, settings: { ...state.settings, attemptsMax } }
+    }
+    default:
+      return state
+  }
+}
+
+export const STORAGE_KEY = 'ibexicon:v1'
+
+// Basic runtime validation to ensure shape before accepting persisted data
+function isValidPersist(obj: any): obj is SessionState {
+  if (!obj || typeof obj !== 'object') return false
+  const { settings, history, guessInput } = obj as SessionState
+  if (!settings || typeof settings !== 'object') return false
+  const requiredSettings = ['length', 'attemptsMax', 'colorblind', 'tauAuto', 'topK'] as const
+  if (!requiredSettings.every((k) => k in settings)) return false
+  if (!Array.isArray(history)) return false
+  if (typeof guessInput !== 'string') return false
+  if (
+    typeof settings.length !== 'number' ||
+    typeof settings.attemptsMax !== 'number' ||
+    typeof settings.colorblind !== 'boolean' ||
+    typeof settings.tauAuto !== 'boolean' ||
+    typeof settings.topK !== 'number'
+  )
+    return false
+  // History entries
+  for (const h of history) {
+    if (!h || typeof h !== 'object') return false
+    if (typeof h.guess !== 'string' || !Array.isArray(h.trits)) return false
+    if (!h.trits.every((t: any) => t === 0 || t === 1 || t === 2)) return false
+    if (h.trits.length !== settings.length) return false
+  }
+  return true
+}
+
+export function loadPersisted(): SessionState | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (isValidPersist(parsed)) {
+      // Sanitize guessInput length
+      const guessInput = sanitizeGuessInput(
+        parsed.guessInput || '',
+        parsed.settings.length,
+      )
+      return { ...parsed, guessInput }
+    }
+  } catch {
+    // ignore
+  }
+  return null
+}
+
+let writeScheduled = false
+let lastStateString = ''
+
+export function persist(state: SessionState): void {
+  if (typeof window === 'undefined') return
+  // Avoid scheduling duplicate work & avoid writing identical JSON
+  const json = JSON.stringify(state)
+  if (json === lastStateString) return
+  lastStateString = json
+  if (writeScheduled) return
+  writeScheduled = true
+  const schedule = (cb: () => void) => {
+    const ric = (window as any).requestIdleCallback as
+      | ((cb: () => void, opts?: any) => number)
+      | undefined
+    if (ric) ric(cb, { timeout: 500 })
+    else setTimeout(cb, 0)
+  }
+  schedule(() => {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, lastStateString)
+    } catch {
+      // ignore storage quota errors
+    } finally {
+      writeScheduled = false
+    }
+  })
+}
