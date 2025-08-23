@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { loadEnManifest } from '@/solver/data/manifest'
-import { loadWordlistSet } from '@/solver/data/loader'
+import { loadManifest, loadWordlistSet } from '@/solver/data/loader'
 import { SolverWorkerClient, makeAbortController } from '@/worker/client'
 
 interface LoadedSet {
@@ -32,7 +31,7 @@ export function WorkerSuggestPanel() {
   // Load manifest once
   useEffect(() => {
     let mounted = true
-    loadEnManifest().then((m) => {
+    loadManifest().then((m) => {
       if (!mounted) return
       setManifestLengths(m.lengths)
       if (m.lengths.length) setSelectedLen(m.lengths[0]!)

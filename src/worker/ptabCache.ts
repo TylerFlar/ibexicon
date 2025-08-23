@@ -2,6 +2,7 @@
 
 import { feedbackPattern } from '@/solver/feedback'
 import { ByteLRU } from './lru'
+import { parsePtabBinary } from '@/ptab/parse'
 import { getPtab, setPtab } from './idb'
 
 export interface PtabMeta { L: number; N: number; M: number; hash32: number; seedIndices: Uint32Array }
@@ -76,39 +77,12 @@ export function createPatternProvider(opts?: ProviderOpts): PatternProvider {
   }
 
   function parseBinary(buf: ArrayBuffer, words: string[], length: number, hash32: number): PtabTable | null {
-    const dv = new DataView(buf)
-    let off = 0
-    const MAGIC = 0x49585054
-    if (dv.getUint32(off, true) !== MAGIC) return null
-    off += 4
-    const version = dv.getUint16(off, true); off += 2
-    if (version !== 1) return null
-    const L = dv.getUint8(off); off += 1
-    off += 1 // reserved
-    const N = dv.getUint32(off, true); off += 4
-    const hash = dv.getUint32(off, true); off += 4
-    const M = dv.getUint32(off, true); off += 4
-    if (L !== length) return null
-    if (hash !== hash32) return null
-    if (N !== words.length) return null
-    // Seed indices
-    const seedIndices = new Uint32Array(M)
-    for (let i = 0; i < M; i++) {
-      seedIndices[i] = dv.getUint32(off, true); off += 4
-    }
-    // Remaining buffer is patterns (M * N * 2 bytes)
-    const expectedBytes = M * N * 2
-    if (off + expectedBytes !== buf.byteLength) {
-      // length mismatch
-      return null
-    }
-    const patternsBuf = buf.slice(off)
-    const bigMatrix = new Uint16Array(patternsBuf)
-    const meta: PtabMeta = { L, N, M, hash32: hash, seedIndices }
-    // We won't populate planes upfront; on first row request we supply subarray.
+    const parsed = parsePtabBinary(buf, words, length, hash32)
+    if (!parsed) return null
+    const meta: PtabMeta = { L: parsed.meta.L, N: parsed.meta.N, M: parsed.meta.M, hash32: parsed.meta.hash32, seedIndices: parsed.meta.seedIndices }
     const table: PtabTable = { meta, planes: new Map() }
     const st = stateFor(length)
-    st.bigMatrix = bigMatrix
+    st.bigMatrix = parsed.bigMatrix
     return table
   }
 

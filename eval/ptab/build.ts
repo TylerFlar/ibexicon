@@ -39,7 +39,9 @@
 
 import { Command } from 'commander'
 import { fnv1a32 } from './fnv1a.js'
-import { feedbackPattern } from '../../src/solver/feedback.ts'
+// (feedbackPattern import removed; logic now in core utilities)
+// Reuse core utilities for easier testing.
+import { pickSeeds, buildPatterns, writeBinary } from './core'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { performance } from 'node:perf_hooks'
@@ -111,7 +113,6 @@ function fmtBytes(n: number): string {
   return v.toFixed(2) + ' ' + units[u]
 }
 
-interface SeedInfo { word: string; index: number; seedScore: number }
 
 function loadWordList(L: number): { words: string[]; priors: Record<string, number>; hash32: number } {
   const txtPath = path.join(WORD_DIR, `en-${L}.txt`)
@@ -129,96 +130,7 @@ function loadWordList(L: number): { words: string[]; priors: Record<string, numb
   return { words, priors, hash32 }
 }
 
-function pickSeeds(words: string[], priors: Record<string, number>, L: number, M: number): SeedInfo[] {
-  const N = words.length
-  // 1. Build prior-sorted list to derive ranks.
-  const withPrior: { word: string; prior: number }[] = words.map((w) => ({ word: w, prior: priors[w] ?? 0 }))
-  withPrior.sort((a, b) => {
-    if (b.prior !== a.prior) return b.prior - a.prior
-    return a.word < b.word ? -1 : a.word > b.word ? 1 : 0
-  })
-  const rankMap = new Map<string, number>()
-  for (let i = 0; i < withPrior.length; i++) rankMap.set(withPrior[i]!.word, i)
-  const denom = N > 1 ? N - 1 : 1
-  const seeds: SeedInfo[] = words.map((w, idx) => {
-    const r = rankMap.get(w) ?? N - 1
-    const priorRankScore = (N - 1 - r) / denom // best => 1, worst => 0
-    let distinct = 0
-    const seen = new Set<string>()
-    for (let i = 0; i < L; i++) seen.add(w[i]!)
-    distinct = seen.size
-    const uniqueLettersScore = distinct / L
-    const seedScore = 0.7 * priorRankScore + 0.3 * uniqueLettersScore
-    return { word: w, index: idx, seedScore }
-  })
-  seeds.sort((a, b) => {
-    if (b.seedScore !== a.seedScore) return b.seedScore - a.seedScore
-    return a.word < b.word ? -1 : a.word > b.word ? 1 : 0
-  })
-  return seeds.slice(0, Math.min(M, seeds.length))
-}
-
-function buildPatterns(
-  L: number,
-  words: string[],
-  seeds: SeedInfo[],
-): { patterns: Uint16Array; M: number } {
-  const N = words.length
-  const M = seeds.length
-  const patArr = new Uint16Array(M * N)
-  for (let m = 0; m < M; m++) {
-    const seedWord = seeds[m]!.word
-    const rowOffset = m * N
-    for (let s = 0; s < N; s++) {
-      const p = feedbackPattern(seedWord, words[s]!)
-      // Numeric path guaranteed for L ≤ 10; still coerce to number.
-      const val = typeof p === 'number' ? p : Number(p)
-      if (val > 0xffff) throw new Error(`Pattern overflow L=${L} value=${val}`)
-      patArr[rowOffset + s] = val
-    }
-  }
-  return { patterns: patArr, M }
-}
-
-function writeBinary(
-  outPath: string,
-  L: number,
-  N: number,
-  M: number,
-  hash32: number,
-  seeds: SeedInfo[],
-  patterns: Uint16Array,
-) {
-  const HEADER_SIZE = 4 + 2 + 1 + 1 + 4 + 4 + 4 // 20 bytes
-  const size = HEADER_SIZE + M * 4 + patterns.byteLength
-  const buf = Buffer.allocUnsafe(size)
-  let off = 0
-  const MAGIC = 0x49585054 // 'IXPT'
-  buf.writeUInt32LE(MAGIC, off)
-  off += 4
-  buf.writeUInt16LE(1, off) // version
-  off += 2
-  buf.writeUInt8(L, off)
-  off += 1
-  buf.writeUInt8(0, off) // reserved
-  off += 1
-  buf.writeUInt32LE(N >>> 0, off)
-  off += 4
-  buf.writeUInt32LE(hash32 >>> 0, off)
-  off += 4
-  buf.writeUInt32LE(M >>> 0, off)
-  off += 4
-  // seed indices
-  for (let i = 0; i < M; i++) {
-    buf.writeUInt32LE(seeds[i]!.index >>> 0, off)
-    off += 4
-  }
-  // patterns (Uint16 LE already, but ensure copy)
-  const patBytes = Buffer.from(patterns.buffer, patterns.byteOffset, patterns.byteLength)
-  patBytes.copy(buf, off)
-  fs.writeFileSync(outPath, buf)
-  return size
-}
+// (pickSeeds, buildPatterns, writeBinary) now imported.
 
 async function main() {
   const lengths = opts.lengths

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { loadEnManifest } from '@/solver/data/manifest'
-import { loadWordlistSet } from '@/solver/data/loader'
+// Use shared manifest/wordlist loader
+import { loadManifest, loadWordlistSet } from '@/solver/data/loader'
 import { CandidateSet, feedbackPattern, decodePattern } from '@/solver'
 import { suggestNext } from '@/solver/scoring'
 
@@ -34,7 +34,7 @@ export function SuggestDebug() {
 
   // Load manifest once
   useEffect(() => {
-    loadEnManifest().then((m) => {
+    loadManifest().then((m) => {
       if (m.lengths.length) setManifestLengths(m.lengths)
     })
   }, [])

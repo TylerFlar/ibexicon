@@ -297,6 +297,7 @@ export function suggestNext(input: ScoringInput, opts: ScoringOpts): Suggestion[
 /** Options extension for provider-backed scoring */
 export interface ScoringOptsWithProvider extends ScoringOpts {
   getPrecomputedPatterns?: (guess: string) => Promise<Uint16Array | null> | Uint16Array | null
+  onGuessDone?: (info: { guess: string; abortedEarly: boolean; secretsVisited: number }) => void
 }
 
 /**
@@ -406,6 +407,7 @@ export async function suggestNextWithProvider(
     const accum: Record<string, PatternAccum> = Object.create(null)
     let abortedEarly = false
 
+    let secretsVisited = 0
     if (!useSampling) {
       if (patterns) {
         for (let start = 0; start < N && !abortedEarly; start += chunkSize) {
@@ -420,6 +422,7 @@ export async function suggestNextWithProvider(
                 a.mass += w
                 if (w > 0) a.massLog += w * Math.log2(w)
                 a.count++
+                secretsVisited++
               }
             })()
           processedChunks++
@@ -456,6 +459,7 @@ export async function suggestNextWithProvider(
             a.mass += w
             if (w > 0) a.massLog += w * Math.log2(w)
             a.count++
+            secretsVisited++
           }
           processedChunks++
           if (reportProgress) reportProgress(processedChunks / totalChunks)
@@ -494,6 +498,7 @@ export async function suggestNextWithProvider(
             const w = p[si]!
             if (w > 0) a.massLog += inc * Math.log2(w)
             a.count++
+            secretsVisited++
           }
           processedChunks++
           if (reportProgress) reportProgress(processedChunks / totalChunks)
@@ -529,6 +534,7 @@ export async function suggestNextWithProvider(
             const w = p[si]!
             if (w > 0) a.massLog += inc * Math.log2(w)
             a.count++
+            secretsVisited++
           }
           processedChunks++
           if (reportProgress) reportProgress(processedChunks / totalChunks)
@@ -552,7 +558,8 @@ export async function suggestNextWithProvider(
         }
       }
     }
-    if (abortedEarly) continue // skip final scoring for this guess
+  if (opts.onGuessDone) opts.onGuessDone({ guess, abortedEarly, secretsVisited })
+  if (abortedEarly) continue // skip final scoring for this guess
 
     // finalize for guess
     let sumHpost = 0

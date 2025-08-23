@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { loadEnManifest } from '../../solver/data/manifest'
-import { loadWordlistSet } from '../../solver/data/loader'
-import type { WordlistSet } from '../../solver/data/loader'
+import { loadManifest, loadWordlistSet } from '@/solver/data/loader'
+import type { WordlistSet } from '@/solver/data/loader'
 
 interface LengthState {
   loading: boolean
@@ -17,7 +16,7 @@ export function WordlistDebug() {
 
   useEffect(() => {
     ;(async () => {
-      const m = await loadEnManifest()
+  const m = await loadManifest()
       setLengths(m.lengths || [])
       setMeta(m.meta || null)
     })()

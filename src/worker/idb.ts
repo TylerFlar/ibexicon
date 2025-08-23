@@ -11,17 +11,29 @@ interface IDBEnv {
 }
 
 const env: IDBEnv = {
-  dbPromise: new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, VERSION)
-    req.onupgradeneeded = () => {
-      const db = req.result
-      if (!db.objectStoreNames.contains(STORE)) {
-        db.createObjectStore(STORE)
-      }
+  dbPromise: ((): Promise<IDBDatabase> => {
+    const idb: any = (globalThis as any).indexedDB
+    if (!idb) {
+      // Provide a dummy DB that throws on transaction; callers catch and treat as cache miss.
+      const dummy = {
+        transaction() {
+          throw new Error('indexedDB unavailable')
+        },
+      } as unknown as IDBDatabase
+      return Promise.resolve(dummy)
     }
-    req.onerror = () => reject(req.error)
-    req.onsuccess = () => resolve(req.result)
-  }),
+    return new Promise((resolve, reject) => {
+      const req = idb.open(DB_NAME, VERSION)
+      req.onupgradeneeded = () => {
+        const db = req.result
+        if (!db.objectStoreNames.contains(STORE)) {
+          db.createObjectStore(STORE)
+        }
+      }
+      req.onerror = () => reject(req.error)
+      req.onsuccess = () => resolve(req.result)
+    })
+  })(),
 }
 
 async function withStore(mode: IDBTransactionMode): Promise<IDBObjectStore> {
