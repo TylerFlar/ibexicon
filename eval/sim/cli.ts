@@ -85,7 +85,9 @@ async function runJobs(jobs: Job[], concurrency: number): Promise<ShardResult[]>
         const startTs = Date.now()
         process.stdout.write(`Start ${job.policy}@L${job.length} (seed=${job.seed})\n`)
         const worker = new Worker(new URL('./worker.ts', import.meta.url), {
-          execArgv: ['--import', 'tsx'],
+          // Use tsx loader so the worker can import TypeScript directly.
+          // (Using --import tsx did not register the extension early enough in CI worker threads.)
+          execArgv: ['--loader', 'tsx'],
           workerData: job,
         })
         worker.once('message', (msg: any) => {
