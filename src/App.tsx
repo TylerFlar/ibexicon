@@ -9,6 +9,7 @@ import { SuggestPanel } from '@/app/components/SuggestPanel'
 import { lazy, Suspense } from 'react'
 const AnalysisPanel = lazy(() => import('@/app/components/AnalysisPanel'))
 const CandidateTable = lazy(() => import('@/app/components/CandidateTable'))
+const LazyLeaderboard = lazy(() => import('@/app/components/Leaderboard'))
 import type { Trit } from '@/app/state/session'
 
 function AssistantAppInner() {
@@ -18,7 +19,7 @@ function AssistantAppInner() {
   const [started, setStarted] = useState(false)
   // UI persistence (tab, candidate search placeholder for future)
   const UI_KEY = 'ibexicon:ui'
-  const [activeTab, setActiveTab] = useState<'suggest' | 'analysis' | 'candidates'>(() => {
+  const [activeTab, setActiveTab] = useState<'suggest' | 'analysis' | 'candidates' | 'leaderboard'>(() => {
     if (typeof window === 'undefined') return 'suggest'
     const raw = window.localStorage.getItem(UI_KEY)
     if (!raw) return 'suggest'
@@ -26,7 +27,10 @@ function AssistantAppInner() {
       const parsed = JSON.parse(raw)
       if (
         parsed &&
-        (parsed.tab === 'analysis' || parsed.tab === 'candidates' || parsed.tab === 'suggest')
+        (parsed.tab === 'analysis' ||
+          parsed.tab === 'candidates' ||
+          parsed.tab === 'suggest' ||
+          parsed.tab === 'leaderboard')
       ) {
         return parsed.tab
       }
@@ -302,6 +306,7 @@ function AssistantAppInner() {
                   { key: 'suggest', label: 'Suggest' },
                   { key: 'analysis', label: 'Analysis' },
                   { key: 'candidates', label: 'Candidates' },
+                  { key: 'leaderboard', label: 'Leaderboard' },
                 ].map((t) => (
                   <button
                     key={t.key}
@@ -344,6 +349,15 @@ function AssistantAppInner() {
                           priors={{}} /* optionally pass renormalized priors here later */
                         />
                       )}
+                    </Suspense>
+                  </section>
+                )}
+                {activeTab === 'leaderboard' && (
+                  <section aria-label="Leaderboard" className="w-full max-w-4xl mx-auto">
+                    <Suspense
+                      fallback={<div className="text-xs text-neutral-500">Loading leaderboard…</div>}
+                    >
+                      <LazyLeaderboard />
                     </Suspense>
                   </section>
                 )}
