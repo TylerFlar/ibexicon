@@ -6,9 +6,7 @@
  * Real simulation logic (policies, parallelism, prior-weighted sampling, metrics, output) to be implemented.
  */
 
-import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync } from 'node:fs'
-import { join } from 'node:path'
 
 interface Args {
   lengths: number[]

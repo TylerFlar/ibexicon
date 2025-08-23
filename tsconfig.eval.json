@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.node.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    "types": ["node"]
+  },
+  "include": ["eval/**/*.ts"]
+}
