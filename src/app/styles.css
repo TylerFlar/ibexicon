@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CSS Variables for tile colors (normal + colorblind override) */
+:root {
+  --tile-bg-absent: #3a3a3c;
+  --tile-bg-present: #b59f3b; /* yellow */
+  --tile-bg-correct: #538d4e; /* green */
+  --tile-border: #565758;
+  --tile-fg: #ffffff;
+}
+
+/* Colorblind mode (applied by adding class 'colorblind' to <body> or a parent) */
+.colorblind {
+  --tile-bg-present: #85c0f9; /* blue */
+  --tile-bg-correct: #f5793a; /* orange */
+}
+
+html, body, #root {
+  @apply h-full min-h-screen;
+}
+
+body {
+  @apply antialiased text-neutral-800 dark:text-neutral-100 bg-neutral-50 dark:bg-neutral-900 m-0 font-sans;
+  font-family: system-ui, ui-sans-serif, sans-serif;
+}
+
+/* App shell layout */
+.app-shell { @apply min-h-dvh flex flex-col md:flex-row; }
+.app-sidebar { @apply w-full md:w-80 shrink-0 border-b md:border-b-0 md:border-r border-neutral-200 dark:border-neutral-700 bg-white/70 dark:bg-neutral-900/70 backdrop-blur; }
+.app-main { @apply flex-1 overflow-y-auto; }
+
+/* Scrollbar subtle styling */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { @apply bg-transparent; }
+*::-webkit-scrollbar-thumb { @apply bg-neutral-300 dark:bg-neutral-700 rounded; }
+
+/* Tile component baseline (data-state cycling) */
+.tile {
+  @apply inline-flex items-center justify-center font-bold rounded-sm uppercase select-none align-middle text-base md:text-lg tracking-wide;
+  width: var(--tile-size, 3rem);
+  height: var(--tile-size, 3rem);
+  background: var(--tile-bg, var(--tile-bg-absent));
+  color: var(--tile-fg);
+  border: 2px solid var(--tile-border);
+  transition: background-color 150ms, transform 150ms;
+}
+.tile[data-state='absent'] { --tile-bg: var(--tile-bg-absent); }
+.tile[data-state='present'] { --tile-bg: var(--tile-bg-present); }
+.tile[data-state='correct'] { --tile-bg: var(--tile-bg-correct); }
+
+.tile:focus-visible { @apply outline outline-2 outline-offset-2 outline-blue-500; }
+
+/* Utility for a responsive two-column page section inside main */
+.pane-grid { @apply grid gap-4 lg:gap-6 grid-cols-1 xl:grid-cols-2; }
+
+/* Layer for any future component classes */
+@layer components {
+  .kbd-key { @apply inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded bg-neutral-200 dark:bg-neutral-700; }
+}
