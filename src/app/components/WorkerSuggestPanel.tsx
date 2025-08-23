@@ -10,6 +10,14 @@ interface LoadedSet {
 }
 
 export function WorkerSuggestPanel() {
+  if (typeof Worker === 'undefined') {
+    return (
+      <section style={{ marginTop: '2rem' }}>
+        <h2>Worker Suggest Panel</h2>
+        <p style={{ fontSize: '0.85rem', color: '#666' }}>Web Workers not available in this environment.</p>
+      </section>
+    )
+  }
   const client = useMemo(() => new SolverWorkerClient(), [])
   const [manifestLengths, setManifestLengths] = useState<number[]>([])
   const [selectedLen, setSelectedLen] = useState<number | null>(null)
