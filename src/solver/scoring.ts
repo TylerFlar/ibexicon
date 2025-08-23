@@ -1,3 +1,4 @@
+ 
 import { feedbackPattern } from '@/solver/feedback'
 import type { PatternValue } from '@/solver/pattern'
 import { useNumericPattern } from '@/solver/pattern'

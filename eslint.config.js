@@ -28,6 +28,7 @@ export default tseslint.config([
       },
     },
     plugins: {
+      '@typescript-eslint': tseslint.plugin,
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
     },
@@ -38,6 +39,8 @@ export default tseslint.config([
       ...reactRefresh.configs.vite.rules,
       // Custom tweaks (minimal for now)
       'no-console': 'warn',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
     },
   },
   // Prettier must be last to turn off conflicting formatting rules

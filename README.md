@@ -78,6 +78,83 @@ P(word) = (freq(word) + μ * P_pos(word)) / (N + μ)
 
 Below are the original Vite + React + TypeScript template notes (kept for reference).
 
+---
+
+## Worker mode (Milestone 4)
+
+Heavy scoring (information gain + solve probability over the current candidate secret set) is offloaded to a single Web Worker to keep the UI responsive. The worker supports:
+
+- RPC-style methods: `warmup`, `score`, `cancel`, `dispose`.
+- Chunked secret iteration (default chunks of 8000) with progress events.
+- Cooperative cancellation via worker message or `AbortSignal`.
+- Transfer-friendly compact prior payload (`Object.entries(priors)`).
+- Strict TypeScript types and module worker syntax (Vite).
+
+### Client API
+
+```ts
+import { SolverWorkerClient, makeAbortController } from '@/worker/client'
+
+const client = new SolverWorkerClient()
+await client.warmup()
+
+const ac = makeAbortController()
+
+const { suggestions, canceled } = await client.score(
+  {
+    words,            // string[] current alive secrets
+    priors,           // Record<string, number> (unnormalized or normalized)
+    attemptsLeft: 6,
+    attemptsMax: 6,
+    topK: 3,
+    tau: null,        // or a number for temperature shaping
+    seed: 123,        // optional RNG seed for sampling path
+    sampleCutoff: 5000,
+    sampleSize: 3000,
+    prefilterLimit: 2000,
+    chunkSize: 8000,  // override default if desired
+    onProgress: (p) => console.log('Progress', (p * 100).toFixed(1) + '%'),
+  },
+  ac.signal,
+)
+
+if (canceled) {
+  console.log('Scoring canceled')
+} else {
+  console.table(suggestions)
+}
+
+// To cancel mid-flight:
+ac.abort() // or client.cancel()
+
+// When finished with the worker:
+client.dispose()
+```
+
+### Progress & cancellation
+
+`onProgress` receives a fraction `0..1` after each processed chunk (across all guesses × secret chunks). Cancellation is cooperative: the scoring loop checks `shouldCancel` at chunk boundaries and throws a `CanceledError` internally which the worker translates into a `{ type: 'canceled' }` message. From the client side you can either call `client.cancel()` or abort an attached `AbortSignal` (`AbortController.abort()`).
+
+### Module worker & paths
+
+The worker is instantiated with:
+
+```ts
+new Worker(new URL('./solver.worker.ts', import.meta.url), { type: 'module' })
+```
+
+Vite handles bundling. If deploying under a sub-path (GitHub Pages), ensure `import.meta.env.BASE_URL` (Vite's `base` config) matches so the manifest and wordlists fetch correctly.
+
+### BASE_URL note
+
+All network fetches for wordlists & priors use `import.meta.env.BASE_URL` (default `/`) as a prefix, so adjust Vite's `base` if serving from a non-root path.
+
+### Testing
+
+Integration tests exercise scoring & cancellation. In the jsdom test environment an inline worker polyfill runs scoring on the main thread while preserving the same message protocol for determinism and speed.
+
+---
+
 ## React + TypeScript + Vite Template Notes
 
 ## Expanding the ESLint configuration

@@ -10,15 +10,8 @@ interface LoadedSet {
 }
 
 export function WorkerSuggestPanel() {
-  if (typeof Worker === 'undefined') {
-    return (
-      <section style={{ marginTop: '2rem' }}>
-        <h2>Worker Suggest Panel</h2>
-        <p style={{ fontSize: '0.85rem', color: '#666' }}>Web Workers not available in this environment.</p>
-      </section>
-    )
-  }
-  const client = useMemo(() => new SolverWorkerClient(), [])
+  const workerAvailable = typeof Worker !== 'undefined'
+  const client = useMemo(() => (workerAvailable ? new SolverWorkerClient() : (null as any)), [workerAvailable])
   const [manifestLengths, setManifestLengths] = useState<number[]>([])
   const [selectedLen, setSelectedLen] = useState<number | null>(null)
   const [loaded, setLoaded] = useState<LoadedSet | null>(null)
@@ -41,12 +34,12 @@ export function WorkerSuggestPanel() {
       setManifestLengths(m.lengths)
       if (m.lengths.length) setSelectedLen(m.lengths[0]!)
     })
-    client.warmup().catch(() => {/* ignore */})
+    if (workerAvailable) client.warmup().catch(() => {/* ignore */})
     return () => {
       mounted = false
-      client.dispose()
+      if (workerAvailable) client.dispose()
     }
-  }, [client])
+  }, [client, workerAvailable])
 
   // Load wordlist when length changes
   useEffect(() => {
@@ -70,7 +63,7 @@ export function WorkerSuggestPanel() {
   }, [selectedLen])
 
   function startScore() {
-    if (!loaded) return
+  if (!loaded || !workerAvailable) return
     if (abortRef.current) {
       abortRef.current.abort()
     }
@@ -89,11 +82,11 @@ export function WorkerSuggestPanel() {
           attemptsMax,
           tau,
           seed,
-          onProgress: (p) => setProgress(p),
+          onProgress: (p: number) => setProgress(p),
         },
         ac.signal,
       )
-      .then((res) => {
+      .then((res: { suggestions: typeof suggestions; canceled?: boolean }) => {
         if (res.canceled) {
           setStatus('canceled')
         } else {
@@ -101,14 +94,22 @@ export function WorkerSuggestPanel() {
           setSuggestions(res.suggestions)
         }
       })
-      .catch((err) => setStatus('error: ' + err.message))
+      .catch((err: any) => setStatus('error: ' + (err?.message || String(err))))
   }
 
   function cancel() {
     abortRef.current?.abort()
-    client.cancel()
+    if (workerAvailable) client.cancel()
   }
 
+  if (!workerAvailable) {
+    return (
+      <section style={{ marginTop: '2rem' }}>
+        <h2>Worker Suggest Panel</h2>
+        <p style={{ fontSize: '0.85rem', color: '#666' }}>Web Workers not available in this environment.</p>
+      </section>
+    )
+  }
   return (
     <section style={{ marginTop: '2rem' }}>
       <h2>Worker Suggest Panel</h2>

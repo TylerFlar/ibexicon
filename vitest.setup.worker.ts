@@ -1,3 +1,4 @@
+ 
 // Inline Web Worker polyfill for Vitest (jsdom) environment.
 // Emulates minimal postMessage/onmessage contract used by SolverWorkerClient.
 import { suggestNext, CanceledError } from './src/solver/scoring'
@@ -8,12 +9,11 @@ if (typeof Worker === 'undefined') {
     payload: any
   }
   class InlineWorker {
-    onmessage: ((e: MessageEvent<any>) => void) | null = null
-    onerror: ((e: any) => void) | null = null
+  onmessage: ((event: MessageEvent<any>) => void) | null = null // event used when invoked
     private canceled = false
     private disposed = false
     private current: PendingScore | null = null
-    constructor(_url: URL, _opts?: any) {}
+  constructor(_url: URL, _opts?: any) {}
     postMessage(msg: any) {
       if (this.disposed) return
       switch (msg.type) {
@@ -68,8 +68,8 @@ if (typeof Worker === 'undefined') {
         if (err instanceof CanceledError || (err as any)?.name === 'CanceledError') {
           this.emit({ id, type: 'canceled' })
         } else {
-          const e = err as any
-            this.emit({ id, type: 'error', error: { message: String(e?.message || e), stack: e?.stack } })
+          const e2 = err as any
+            this.emit({ id, type: 'error', error: { message: String(e2?.message || e2), stack: e2?.stack } })
         }
       } finally {
         this.current = null

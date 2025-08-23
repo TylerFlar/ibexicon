@@ -1,5 +1,7 @@
+ 
 import type { Msg as WorkerMsg, OutMsg } from './solver.worker'
 
+// Progress handler (percent 0..1)
 export type ProgressHandler = (percent: number) => void
 
 export interface ScoreArgs {
@@ -29,8 +31,8 @@ export interface ScoreResult {
 }
 
 interface PendingEntry<T = unknown> {
-  resolve: (v: T) => void
-  reject: (err: unknown) => void
+  resolve: (value: T) => void
+  reject: (error: unknown) => void
   onProgress?: ProgressHandler
   kind: 'warmup' | 'score' | 'dispose'
 }
@@ -97,7 +99,7 @@ export class SolverWorkerClient {
   warmup(): Promise<void> {
     const id = this.nextId()
     return new Promise<void>((resolve, reject) => {
-      this.pending.set(id, { resolve: resolve as (v: void) => void, reject, kind: 'warmup' })
+  this.pending.set(id, { resolve: resolve as (v: void) => void, reject: reject as (e: unknown) => void, kind: 'warmup' })
       this.post({ id, type: 'warmup' })
     })
   }
@@ -119,7 +121,7 @@ export class SolverWorkerClient {
           signal.addEventListener('abort', abortHandler, { once: true })
         }
       }
-      this.pending.set(id, { resolve: resolve as (v: ScoreResult) => void, reject, onProgress, kind: 'score' })
+  this.pending.set(id, { resolve: resolve as (v: ScoreResult) => void, reject: reject as (e: unknown) => void, onProgress, kind: 'score' })
       this.post({
         id,
         type: 'score',
@@ -149,11 +151,7 @@ export class SolverWorkerClient {
   dispose(): void {
     // Send dispose message; also terminate as a safety fallback after a tick.
     const id = this.nextId()
-    this.pending.set(id, {
-      resolve: () => {},
-      reject: () => {},
-      kind: 'dispose',
-    })
+    this.pending.set(id, { resolve: () => {}, reject: () => {}, kind: 'dispose' })
     try {
       this.post({ id, type: 'dispose' })
     } finally {
