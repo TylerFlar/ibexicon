@@ -18,9 +18,6 @@ export interface UseSessionResult extends SessionState {
   undo(): void
   clear(): void
   toggleColorblind(): void
-  setTauAuto(value: boolean): void
-  setTau(value: number): void
-  setTopK(value: number): void
   setAttemptsMax(value: number): void
 }
 
@@ -61,22 +58,11 @@ export function useSession(): UseSessionResult {
     () => dispatch({ type: 'toggleColorblind' }),
     [],
   )
-  const setTauAuto = useCallback(
-    (value: boolean) => dispatch({ type: 'setTauAuto', value }),
-    [],
-  )
-  const setTau = useCallback(
-    (value: number) => dispatch({ type: 'setTau', value }),
-    [],
-  )
-  const setTopK = useCallback(
-    (value: number) => dispatch({ type: 'setTopK', value }),
-    [],
-  )
   const setAttemptsMax = useCallback(
     (value: number) => dispatch({ type: 'setAttemptsMax', value }),
     [],
   )
+  
 
   return {
     ...state,
@@ -88,9 +74,6 @@ export function useSession(): UseSessionResult {
     undo,
     clear,
     toggleColorblind,
-    setTauAuto,
-    setTau,
-    setTopK,
     setAttemptsMax,
   }
 }

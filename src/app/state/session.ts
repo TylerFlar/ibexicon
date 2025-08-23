@@ -13,9 +13,6 @@ export interface Settings {
   length: number
   attemptsMax: number
   colorblind: boolean
-  tauAuto: boolean
-  tau?: number
-  topK: number
 }
 
 export interface SessionState {
@@ -32,10 +29,8 @@ export type Action =
   | { type: 'undo' }
   | { type: 'clear' }
   | { type: 'toggleColorblind' }
-  | { type: 'setTauAuto'; value: boolean }
-  | { type: 'setTau'; value: number }
-  | { type: 'setTopK'; value: number }
   | { type: 'setAttemptsMax'; value: number }
+  
 
 export function initialState(length: number): SessionState {
   return {
@@ -43,9 +38,6 @@ export function initialState(length: number): SessionState {
       length,
       attemptsMax: 10,
       colorblind: false,
-      tauAuto: true,
-      tau: undefined,
-      topK: 10,
     },
     history: [],
     guessInput: '',
@@ -118,28 +110,6 @@ export function reducer(state: SessionState, action: Action): SessionState {
         settings: { ...state.settings, colorblind: !state.settings.colorblind },
       }
     }
-    case 'setTauAuto': {
-      const tauAuto = !!action.value
-      return {
-        ...state,
-        settings: {
-          ...state.settings,
-          tauAuto,
-          tau: tauAuto ? undefined : state.settings.tau,
-        },
-      }
-    }
-    case 'setTau': {
-      const tau = Number.isFinite(action.value) ? action.value : state.settings.tau
-      return {
-        ...state,
-        settings: { ...state.settings, tau, tauAuto: false },
-      }
-    }
-    case 'setTopK': {
-      const topK = Math.max(1, Math.min(1000, Math.floor(action.value)))
-      return { ...state, settings: { ...state.settings, topK } }
-    }
     case 'setAttemptsMax': {
       const attemptsMax = Math.max(1, Math.min(100, Math.floor(action.value)))
       return { ...state, settings: { ...state.settings, attemptsMax } }
@@ -149,14 +119,14 @@ export function reducer(state: SessionState, action: Action): SessionState {
   }
 }
 
-export const STORAGE_KEY = 'ibexicon:v1'
+export const STORAGE_KEY = 'ibexicon:v2' // bump version to invalidate old cached games
 
 // Basic runtime validation to ensure shape before accepting persisted data
 function isValidPersist(obj: any): obj is SessionState {
   if (!obj || typeof obj !== 'object') return false
   const { settings, history, guessInput } = obj as SessionState
   if (!settings || typeof settings !== 'object') return false
-  const requiredSettings = ['length', 'attemptsMax', 'colorblind', 'tauAuto', 'topK'] as const
+  const requiredSettings = ['length', 'attemptsMax', 'colorblind'] as const
   if (!requiredSettings.every((k) => k in settings)) return false
   if (!Array.isArray(history)) return false
   if (typeof guessInput !== 'string') return false
@@ -164,8 +134,7 @@ function isValidPersist(obj: any): obj is SessionState {
     typeof settings.length !== 'number' ||
     typeof settings.attemptsMax !== 'number' ||
     typeof settings.colorblind !== 'boolean' ||
-    typeof settings.tauAuto !== 'boolean' ||
-    typeof settings.topK !== 'number'
+    false
   )
     return false
   // History entries
@@ -185,12 +154,12 @@ export function loadPersisted(): SessionState | null {
     if (!raw) return null
     const parsed = JSON.parse(raw)
     if (isValidPersist(parsed)) {
-      // Sanitize guessInput length
-      const guessInput = sanitizeGuessInput(
-        parsed.guessInput || '',
-        parsed.settings.length,
-      )
-      return { ...parsed, guessInput }
+      // We now intentionally drop any persisted history/guessInput to avoid carrying over games.
+      return {
+        settings: parsed.settings,
+        history: [],
+        guessInput: '',
+      }
     }
   } catch {
     // ignore
@@ -204,7 +173,8 @@ let lastStateString = ''
 export function persist(state: SessionState): void {
   if (typeof window === 'undefined') return
   // Avoid scheduling duplicate work & avoid writing identical JSON
-  const json = JSON.stringify(state)
+  // Only persist settings (not history) to avoid caching in-progress games between sessions.
+  const json = JSON.stringify({ settings: state.settings, history: [], guessInput: '' })
   if (json === lastStateString) return
   lastStateString = json
   if (writeScheduled) return

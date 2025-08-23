@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { buildCandidates } from '@/app/logic/constraints'
 import type { SessionState } from '@/app/state/session'
 import { SolverWorkerClient, type ScoreResult } from '@/worker/client'
+import { alphaFor } from '@/solver/scoring'
 import { loadWordlistSet } from '@/solver/data/loader'
 import { useToasts } from '@/app/components/Toaster'
-import { WhatIf } from '@/app/components/WhatIf'
+// Simplified; WhatIf / preview removed
 
 export interface SuggestPanelProps {
   session: SessionState
@@ -17,7 +18,7 @@ interface WordData {
 
 export function SuggestPanel({ session }: SuggestPanelProps) {
   const { history, settings } = session
-  const { length, attemptsMax, topK, tauAuto, tau } = settings
+  const { length, attemptsMax } = settings
   const attemptsLeft = attemptsMax - history.length
   const { push } = useToasts()
 
@@ -54,6 +55,17 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
   }, [wordData, history])
 
   const candidateWords = candidates?.getAliveWords() ?? []
+  const alpha = useMemo(() => {
+    if (!candidates) return null
+    return alphaFor(candidateWords.length, attemptsLeft, attemptsMax)
+  }, [candidates, candidateWords.length, attemptsLeft, attemptsMax])
+
+  const explorationState = useMemo(() => {
+    if (alpha == null) return null
+    if (alpha >= 0.6) return { label: 'Exploring', tone: 'info' as const }
+    if (alpha <= 0.4) return { label: 'Exploiting', tone: 'success' as const }
+    return { label: 'Balanced', tone: 'neutral' as const }
+  }, [alpha])
 
   // Worker client lifecycle
   const clientRef = useRef<SolverWorkerClient | null>(null)
@@ -96,8 +108,8 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
           priors: wordData.priors,
           attemptsLeft,
           attemptsMax,
-          topK,
-          tau: tauAuto ? null : tau,
+          topK: 10,
+          tau: null,
           onProgress: (p) => setProgress(p),
         },
         controller.signal,
@@ -112,7 +124,7 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
       .finally(() => {
         setInFlight(false)
       })
-  }, [wordData, candidates, candidateWords, attemptsLeft, attemptsMax, topK, tauAuto, tau, push])
+  }, [wordData, candidates, candidateWords, attemptsLeft, attemptsMax, push])
 
   const cancel = () => {
     if (abortRef.current) {
@@ -121,39 +133,36 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
     clientRef.current?.cancel()
   }
 
-  // Collapsible preview
-  const [showPreview, setShowPreview] = useState(false)
-  const previewList = candidateWords.slice(0, 20)
+  // Auto-run scoring for smaller candidate sets
+  useEffect(() => {
+    if (!results && !inFlight && candidateWords.length > 0 && candidateWords.length <= 500) {
+      startScoring()
+    }
+  }, [candidateWords.length, results, inFlight, startScoring])
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold tracking-wide text-neutral-600 dark:text-neutral-300">
-          Suggestions
-        </h2>
-        <div className="text-[0.65rem] text-neutral-500 dark:text-neutral-400">
-          {candidateWords.length.toLocaleString()} candidates
-        </div>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2 text-[0.65rem] text-neutral-500 dark:text-neutral-400">
+        <span>{candidateWords.length.toLocaleString()} candidates</span>
+        {alpha != null && explorationState && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-neutral-300 dark:border-neutral-600 bg-neutral-100 dark:bg-neutral-800">
+            <strong className="font-semibold tracking-tight">{explorationState.label}</strong>
+            <span className="opacity-70 tabular-nums">{Math.round(alpha * 100)}%</span>
+          </span>
+        )}
       </div>
       {loading && <p className="text-xs text-neutral-500">Loading wordlist…</p>}
       {error && (
         <p className="text-xs text-red-600 dark:text-red-400">Failed to load: {error}</p>
       )}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex justify-center">
         <button
           type="button"
           onClick={inFlight ? cancel : startScoring}
           disabled={loading || !wordData || candidateWords.length === 0}
-          className="px-3 py-1 rounded bg-indigo-600 text-white text-sm font-medium disabled:opacity-40"
+          className="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-semibold disabled:opacity-40"
         >
-          {inFlight ? 'Cancel' : 'Suggest next guess'}
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowPreview((s) => !s)}
-          className="px-2 py-1 rounded border border-neutral-300 dark:border-neutral-700 text-xs"
-        >
-          {showPreview ? 'Hide preview' : 'Show preview'}
+          {inFlight ? 'Cancel' : 'Rank Suggestions'}
         </button>
       </div>
       {inFlight && (
@@ -164,87 +173,38 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
           />
         </div>
       )}
-      {showPreview && previewList.length > 0 && (
-        <div className="text-[0.65rem] font-mono leading-snug flex flex-wrap gap-x-2 gap-y-1 max-h-24 overflow-y-auto border rounded p-2 border-neutral-200 dark:border-neutral-700">
-          {previewList.map((w) => (
-            <span key={w}>{w}</span>
-          ))}
-        </div>
-      )}
       {results && results.length > 0 && (
         <div className="overflow-auto max-h-80">
           <table className="w-full text-xs border-collapse">
             <thead className="sticky top-0 bg-neutral-100 dark:bg-neutral-800">
               <tr>
                 <th className="text-left p-1 font-semibold">Guess</th>
-                <th className="text-right p-1 font-semibold">EIG (bits)</th>
-                <th className="text-right p-1 font-semibold">SolveProb</th>
-                <th className="text-right p-1 font-semibold">α</th>
-                <th className="text-right p-1 font-semibold">ExpectedRemaining</th>
-                <th className="p-1" />
+                <th className="text-right p-1 font-semibold">EIG</th>
+                <th className="text-right p-1 font-semibold">Solve%</th>
+                <th className="text-right p-1 font-semibold">Remain</th>
               </tr>
             </thead>
             <tbody>
               {results.map((s) => (
-                <SuggestionWithWhatIf
-                  key={s.guess}
-                  suggestion={s}
-                  candidates={candidateWords}
-                  priors={wordData?.priors || {}}
-                />
+                <tr key={s.guess} className="odd:bg-neutral-50 dark:odd:bg-neutral-900/30">
+                  <td className="p-1 font-mono">
+                    <button
+                      type="button"
+                      className="underline-offset-2 hover:underline"
+                      onClick={() => window.dispatchEvent(new CustomEvent('ibx:set-guess-input', { detail: s.guess }))}
+                    >
+                      {s.guess}
+                    </button>
+                  </td>
+                  <td className="p-1 text-right tabular-nums">{s.eig.toFixed(2)}</td>
+                  <td className="p-1 text-right tabular-nums">{(s.solveProb * 100).toFixed(1)}</td>
+                  <td className="p-1 text-right tabular-nums">{s.expectedRemaining.toFixed(1)}</td>
+                </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
     </div>
-  )
-}
-
-interface SuggestionWithWhatIfProps {
-  suggestion: ScoreResult['suggestions'][number]
-  candidates: string[]
-  priors: Record<string, number>
-}
-
-function SuggestionWithWhatIf({ suggestion, candidates, priors }: SuggestionWithWhatIfProps) {
-  const [show, setShow] = useState(false)
-  return (
-    <>
-      <tr className="odd:bg-neutral-50 dark:odd:bg-neutral-900/30">
-        <td className="p-1 font-mono">{suggestion.guess}</td>
-        <td className="p-1 text-right tabular-nums">{suggestion.eig.toFixed(3)}</td>
-        <td className="p-1 text-right tabular-nums">{(suggestion.solveProb * 100).toFixed(2)}%</td>
-        <td className="p-1 text-right tabular-nums">{suggestion.alpha.toFixed(3)}</td>
-        <td className="p-1 text-right tabular-nums">{suggestion.expectedRemaining.toFixed(1)}</td>
-        <td className="p-1 text-right flex flex-col gap-1 items-end">
-          <button
-            type="button"
-            className="px-2 py-0.5 rounded bg-neutral-300 dark:bg-neutral-700 hover:bg-neutral-400 dark:hover:bg-neutral-600 text-[0.65rem]"
-            onClick={() => {
-              window.dispatchEvent(
-                new CustomEvent('ibx:set-guess-input', { detail: suggestion.guess }),
-              )
-            }}
-          >
-            Try this
-          </button>
-          <button
-            type="button"
-            className="px-2 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700 text-[0.55rem]"
-            onClick={() => setShow((s) => !s)}
-          >
-            {show ? 'Hide what-if' : 'What if…'}
-          </button>
-        </td>
-      </tr>
-      {show && (
-        <tr>
-          <td colSpan={6} className="p-2">
-            <WhatIf guess={suggestion.guess} candidates={candidates} priors={priors} />
-          </td>
-        </tr>
-      )}
-    </>
   )
 }

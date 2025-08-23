@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSession } from '@/app/hooks/useSession'
 import { GuessRow } from '@/app/components/GuessRow'
 import { Keyboard } from '@/app/components/Keyboard'
-import { ControlsBar } from '@/app/components/ControlsBar'
 import { ToastProvider, useToasts } from '@/app/components/Toaster'
 import { loadWordlistSet } from '@/solver/data/loader'
 import { buildCandidates, wouldEliminateAll } from '@/app/logic/constraints'
@@ -13,14 +12,14 @@ function AssistantAppInner() {
   const session = useSession()
   const { settings, history, guessInput, setGuessInput, addGuess } = session
   const { push } = useToasts()
+  const [started, setStarted] = useState(false)
 
-  // Apply colorblind class on body
+  // Apply body classes
   useEffect(() => {
-    if (settings.colorblind) document.body.classList.add('colorblind')
-    else document.body.classList.remove('colorblind')
+    document.body.classList.toggle('colorblind', settings.colorblind)
   }, [settings.colorblind])
 
-  // Load wordlist for current length
+  // Word list loading
   const [words, setWords] = useState<string[] | null>(null)
   const [loadingWords, setLoadingWords] = useState(false)
   useEffect(() => {
@@ -45,16 +44,10 @@ function AssistantAppInner() {
     }
   }, [settings.length, push])
 
-  // Candidate set derived from history
-  const candidates = useMemo(() => {
-    if (!words) return null
-    return buildCandidates(words, history)
-  }, [words, history])
-
+  const candidates = useMemo(() => (words ? buildCandidates(words, history) : null), [words, history])
   const candidateCount = candidates?.getAliveWords().length ?? 0
 
   const [pendingConfirm, setPendingConfirm] = useState<null | { kind: 'offlist' | 'eliminate'; guess: string; trits: Trit[] }>(null)
-
   const isInWordlist = (g: string) => !!words && words.includes(g)
 
   const commitGuess = (guess: string, trits: Trit[]) => {
@@ -70,23 +63,30 @@ function AssistantAppInner() {
     if (!isInWordlist(guess)) {
       setPendingConfirm({ kind: 'offlist', guess, trits })
       push({
-        message: `That word isn't in the en-${settings.length} list. Continue?`,
+        message: `Not in en-${settings.length} list. Add anyway?`,
         tone: 'warn',
+        actions: [
+          { label: 'Add', event: 'confirm', tone: 'primary' },
+          { label: 'Cancel', event: 'cancel' },
+        ],
       })
       return
     }
     if (wouldEliminateAll(words, history, guess, trits)) {
       setPendingConfirm({ kind: 'eliminate', guess, trits })
       push({
-        message: 'This pattern would eliminate all candidates. Apply anyway?',
+        message: 'Pattern eliminates all candidates. Apply?',
         tone: 'warn',
+        actions: [
+          { label: 'Apply', event: 'confirm', tone: 'danger' },
+          { label: 'Cancel', event: 'cancel' },
+        ],
       })
       return
     }
     addGuess(guess, trits)
   }
 
-  // Listen for global confirm events from toast action buttons
   useEffect(() => {
     const handler = (e: any) => {
       if (!pendingConfirm) return
@@ -99,9 +99,8 @@ function AssistantAppInner() {
     return () => window.removeEventListener('ibx:confirm-action', handler)
   }, [pendingConfirm, addGuess])
 
-  // Keyboard integration
   const handleKeyboardKey = (k: string) => {
-    if (k === 'Enter') return // commit handled by GuessRow button/enter
+    if (k === 'Enter') return
     if (k === 'Backspace') {
       setGuessInput(guessInput.slice(0, -1))
       return
@@ -113,7 +112,16 @@ function AssistantAppInner() {
     }
   }
 
-  // History board rows
+  // Shake animation for invalid tries
+  const activeRowWrapperRef = useRef<HTMLDivElement | null>(null)
+  const triggerShake = () => {
+    const el = activeRowWrapperRef.current
+    if (!el) return
+    el.classList.remove('shake-invalid')
+    void el.offsetWidth
+    el.classList.add('shake-invalid')
+  }
+
   const boardRows = history.map((h, idx) => (
     <div key={idx} className="flex gap-1" aria-label={`Guess ${idx + 1}`}> 
       {Array.from({ length: settings.length }, (_, i) => (
@@ -129,61 +137,103 @@ function AssistantAppInner() {
   ))
 
   return (
-    <div className="app-shell">
-      <aside className="app-sidebar p-4 space-y-4 overflow-y-auto">
-        <h1 className="text-xl font-semibold tracking-tight">Ibexicon Assistant</h1>
-        <ControlsBar
-          state={session}
-          actions={{
-            setLength: session.setLength,
-            setAttemptsMax: session.setAttemptsMax,
-            setTopK: session.setTopK,
-            setTauAuto: session.setTauAuto,
-            setTau: session.setTau,
-            toggleColorblind: session.toggleColorblind,
-            undo: session.undo,
-            clear: session.clear,
-          }}
-        />
-        <div className="text-xs text-neutral-500 dark:text-neutral-400">
-          {loadingWords && <span>Loading wordlist…</span>}
-          {!loadingWords && words && (
-            <span>
-              {words.length.toLocaleString()} words | Candidates: {candidateCount.toLocaleString()}
-            </span>
-          )}
-        </div>
-      </aside>
-      <main className="app-main p-4 md:p-6 flex flex-col gap-6">
-        <section className="flex flex-col gap-3" aria-label="Guess history and active row">
-          <div className="flex flex-col gap-1" aria-live="polite">
-            {boardRows}
+    <div className="flex flex-col min-h-dvh">
+      <main className="flex-1 flex flex-col items-center gap-10 p-4 md:p-8 w-full max-w-5xl mx-auto">
+        <h1 className="text-3xl font-semibold tracking-tight">Ibexicon</h1>
+        {!started && (
+          <section className="w-full max-w-sm flex flex-col gap-4" aria-label="Setup">
+            <label className="flex flex-col gap-1 text-xs font-medium" title="Word length">
+              <span>Word length</span>
+              <select
+                className="px-3 py-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white/90 dark:bg-neutral-800/80 text-sm"
+                value={settings.length}
+                onChange={(e) => session.setLength(Number(e.target.value))}
+              >
+                {Array.from({ length: 12 }, (_, i) => 5 + i).map((L) => (
+                  <option key={L} value={L}>{L}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium" title="Max attempts">
+              <span>Attempts</span>
+              <input
+                type="number"
+                min={1}
+                max={100}
+                className="px-3 py-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white/90 dark:bg-neutral-800/80 text-sm"
+                value={settings.attemptsMax}
+                onChange={(e) => session.setAttemptsMax(Number(e.target.value))}
+              />
+            </label>
+            <label className="flex items-center gap-2 text-xs" title="Colorblind mode">
+              <input type="checkbox" checked={settings.colorblind} onChange={session.toggleColorblind} />
+              <span>Colorblind mode</span>
+            </label>
+            <button
+              type="button"
+              className="mt-2 px-6 py-2 rounded-md bg-blue-600 text-white font-semibold text-sm"
+              onClick={() => setStarted(true)}
+            >Start</button>
+          </section>
+        )}
+        {started && (
+          <div className="flex flex-wrap gap-3 justify-center text-xs -mt-4">
+            <div className="px-3 py-1 rounded-full bg-neutral-200 dark:bg-neutral-700">{history.length}/{settings.attemptsMax} attempts</div>
+            <button
+              type="button"
+              className="px-3 py-1 rounded-full bg-red-500 text-white hover:bg-red-600"
+              onClick={() => { session.clear(); setStarted(false); }}
+            >Restart</button>
           </div>
-          {history.length < settings.attemptsMax && (
-            <GuessRow
-              length={settings.length}
-              value={guessInput}
-              onChange={session.setGuessInput}
-              onCommit={commitGuess}
-              onInvalid={(r) => {
-                if (r === 'pattern') {
-                  push({ message: 'Pattern length mismatch', tone: 'warn' })
-                }
-              }}
-              colorblind={settings.colorblind}
-              disabled={!words}
-              resetSignal={history.length}
-            />
+        )}
+        <section className="flex flex-col gap-3 items-center" aria-label="Guess history and active row" style={{ maxWidth: '100%' }}>
+          <div className="flex flex-col gap-1 items-center" aria-live="polite">
+            {/* Past guesses */}
+            {started && boardRows}
+            {/* Active guess row centered below */}
+            {started && history.length < settings.attemptsMax && (
+              <div ref={activeRowWrapperRef} className="mt-1 flex justify-center w-full">
+                <GuessRow
+                  length={settings.length}
+                  value={guessInput}
+                  onChange={session.setGuessInput}
+                  onCommit={commitGuess}
+                  onInvalid={(r) => {
+                    if (r === 'pattern' || r === 'length') triggerShake()
+                    if (r === 'pattern') push({ message: 'Pattern length mismatch', tone: 'warn' })
+                  }}
+                  colorblind={settings.colorblind}
+                  disabled={!words}
+                  resetSignal={history.length}
+                />
+              </div>
+            )}
+          </div>
+          {started && (
+            <div className="text-xs text-neutral-500 dark:text-neutral-400 text-center">
+              {loadingWords && <span>Loading…</span>}
+              {!loadingWords && words && (
+                <span>
+                  {words.length.toLocaleString()} words • Candidates: {candidateCount.toLocaleString()}
+                </span>
+              )}
+            </div>
           )}
         </section>
-        <Keyboard history={history} onKey={handleKeyboardKey} disabled={!words} />
+        {started && (
+          <div className="flex flex-col items-center gap-6 w-full">
+            <Keyboard history={history} onKey={handleKeyboardKey} disabled={!words} />
+            <section aria-label="Suggestions" className="w-full max-w-xl">
+              <SuggestPanel session={session} />
+            </section>
+          </div>
+        )}
       </main>
-      <div className="hidden md:block w-96 shrink-0 border-l border-neutral-200 dark:border-neutral-800 p-4 space-y-4">
-        <SuggestPanel session={session} />
-      </div>
     </div>
   )
 }
+
+// (AutoOpenSuggestions no longer needed; suggestions always visible)
 
 function App() {
   return (

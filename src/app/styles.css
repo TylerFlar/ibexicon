@@ -46,9 +46,21 @@ body {
   border: 2px solid var(--tile-border);
   transition: background-color 150ms, transform 150ms;
 }
+
+/* Automatically shrink tiles when length grows beyond typical 15 to keep within viewport width */
+.auto-shrink-tiles[data-word-length='16'] .tile { --tile-size: 2.8rem; }
+.auto-shrink-tiles[data-word-length='18'] .tile { --tile-size: 2.6rem; }
+.auto-shrink-tiles[data-word-length='20'] .tile { --tile-size: 2.4rem; }
+.auto-shrink-tiles[data-word-length='22'] .tile { --tile-size: 2.2rem; }
+.auto-shrink-tiles[data-word-length='24'] .tile { --tile-size: 2.0rem; }
+.auto-shrink-tiles[data-word-length='26'] .tile { --tile-size: 1.9rem; }
+.auto-shrink-tiles[data-word-length='28'] .tile { --tile-size: 1.8rem; }
+.auto-shrink-tiles[data-word-length='30'] .tile { --tile-size: 1.7rem; }
+
 .tile[data-state='absent'] { --tile-bg: var(--tile-bg-absent); }
 .tile[data-state='present'] { --tile-bg: var(--tile-bg-present); }
 .tile[data-state='correct'] { --tile-bg: var(--tile-bg-correct); }
+
 
 .tile:focus-visible { @apply outline outline-2 outline-offset-2 outline-blue-500; }
 
