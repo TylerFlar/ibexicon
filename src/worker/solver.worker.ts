@@ -1,10 +1,11 @@
 /* Solver Web Worker (module) providing scoring RPC with progress & cancellation */
-import { suggestNext, CanceledError } from '@/solver/scoring'
+import { suggestNextWithProvider, CanceledError } from '@/solver/scoring'
 import { letterPositionHeatmap, explainGuess } from '@/solver/analysis'
+import { createPatternProvider } from './ptabCache'
 
 // Message definitions (incoming)
 export type Msg =
-  | { id: number; type: 'warmup' }
+  | { id: number; type: 'warmup'; payload?: { length?: number; words?: string[] } }
   | {
       id: number
       type: 'score'
@@ -20,6 +21,8 @@ export type Msg =
         sampleSize?: number
         prefilterLimit?: number
         chunkSize?: number
+        earlyCut?: boolean
+        epsilon?: number
       }
     }
   | {
@@ -53,6 +56,7 @@ export type OutMsg =
   | { id: number; type: 'disposed' }
 
 let canceled = false
+const patternProvider = createPatternProvider()
 
 function normalizePriors(
   priors: [string, number][] | Record<string, number>,
@@ -95,6 +99,12 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
     case 'warmup': {
       try {
         warmupNoop()
+        if (msg.payload?.length && msg.payload.words) {
+          // Preload pattern asset (non-blocking but awaited here for determinism)
+          try {
+            await patternProvider.ensureForLength(msg.payload.length, msg.payload.words)
+          } catch {/* ignore */}
+        }
         const out: OutMsg = { id: msg.id, type: 'warmup:ok' }
         ;(self as unknown as Worker).postMessage(out)
       } catch (err) {
@@ -121,10 +131,14 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
         sampleSize,
         prefilterLimit,
         chunkSize,
+        earlyCut,
+        epsilon,
       } = msg.payload
       try {
         const priorsRecord = normalizePriors(priors)
-        const suggestions = suggestNext(
+        // Ensure potential asset present
+        try { await patternProvider.ensureForLength(words[0]?.length || 0, words) } catch {/* ignore */}
+        const suggestions = await suggestNextWithProvider(
           { words, priors: priorsRecord },
           {
             attemptsLeft,
@@ -136,11 +150,22 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
             sampleSize,
             prefilterLimit,
             chunkSize,
+            earlyCut,
+            epsilon,
             onProgress: (p) => {
               const out: OutMsg = { id: msg.id, type: 'progress', p }
               ;(self as unknown as Worker).postMessage(out)
             },
             shouldCancel: () => canceled,
+            getPrecomputedPatterns: async (guess: string) => {
+              try {
+                const L = words[0]?.length || 0
+                const arr = await patternProvider.getPatterns(L, words, guess)
+                return arr
+              } catch {
+                return null
+              }
+            },
           },
         )
         if (canceled) {

@@ -16,6 +16,9 @@ export interface ScoringOpts {
   shouldCancel?: () => boolean // return true to request cancellation
   chunkSize?: number // secrets per chunk for progress/cancel checks (default 8000)
   alphaOverride?: number | null // if provided (0..1), overrides dynamic alphaFor()
+  // Early-cut controls (used in provider-integrated async scorer). Defaults set in suggestNextWithProvider.
+  earlyCut?: boolean
+  epsilon?: number
 }
 
 export interface Suggestion {
@@ -278,6 +281,298 @@ export function suggestNext(input: ScoringInput, opts: ScoringOpts): Suggestion[
     const eig = H - sumHpost
     const solveProb = computeSolveProbIndex(words, p, guessIdx)
     const score = alpha * eig + (1 - alpha) * solveProb
+    results.push({ idx: guessIdx, eig, solveProb, expectedRemaining, score })
+  }
+
+  results.sort((a, b) => b.score - a.score || a.idx - b.idx)
+  return results.slice(0, topK).map((r) => ({
+    guess: words[r.idx]!,
+    eig: r.eig,
+    solveProb: r.solveProb,
+    alpha,
+    expectedRemaining: r.expectedRemaining,
+  }))
+}
+
+/** Options extension for provider-backed scoring */
+export interface ScoringOptsWithProvider extends ScoringOpts {
+  getPrecomputedPatterns?: (guess: string) => Promise<Uint16Array | null> | Uint16Array | null
+}
+
+/**
+ * Async variant that can leverage precomputed pattern rows (Uint16Array of numeric pattern codes)
+ * and applies an early-cut branch-and-bound upper bound to prune hopeless guesses.
+ */
+export async function suggestNextWithProvider(
+  input: ScoringInput,
+  opts: ScoringOptsWithProvider,
+): Promise<Suggestion[]> {
+  const { words, priors } = input
+  const N = words.length
+  if (N === 0) return []
+  const topK = opts.topK ?? 3
+  const sampleCutoff = opts.sampleCutoff ?? 5000
+  const sampleSize = opts.sampleSize ?? 3000
+  const prefilterLimit = opts.prefilterLimit ?? 2000
+  const chunkSize = opts.chunkSize && opts.chunkSize > 0 ? opts.chunkSize : DEFAULT_CHUNK_SIZE
+  const reportProgress = opts.onProgress
+  const checkCancel = opts.shouldCancel
+  const earlyCut = opts.earlyCut !== false // default true
+  const epsilon = opts.epsilon ?? 1e-6
+
+  // Priors normalization
+  const p = new Float64Array(N)
+  let sum = 0
+  for (let i = 0; i < N; i++) {
+    const mass = priors[words[i]!] ?? 0
+    p[i]! = mass > 0 ? mass : 0
+    sum += p[i]!
+  }
+  if (sum === 0) {
+    const uniform = 1 / N
+    for (let i = 0; i < N; i++) p[i]! = uniform
+  } else {
+    const inv = 1 / sum
+    for (let i = 0; i < N; i++) p[i]! *= inv
+  }
+  if (opts.tau != null) applyTemperature(p, opts.tau)
+
+  // Entropy H(S)
+  let H = 0
+  for (let i = 0; i < N; i++) {
+    const pi = p[i]!
+    if (pi > 0) H -= pi * Math.log2(pi)
+  }
+
+  // Candidate ordering (prefilter)
+  let candidateIdxs: number[]
+  if (N > prefilterLimit) {
+    const heur = heuristicOrder(words, p, prefilterLimit)
+    const priorTop = topByPrior(p, 50)
+    const set = new Set<number>([...heur, ...priorTop])
+    candidateIdxs = [...set]
+  } else {
+    candidateIdxs = [...Array(N).keys()]
+  }
+
+  const alpha =
+    opts.alphaOverride !== undefined && opts.alphaOverride !== null
+      ? Math.max(0, Math.min(1, opts.alphaOverride))
+      : alphaFor(N, opts.attemptsLeft, opts.attemptsMax)
+  const L = words[0]!.length
+  const numeric = useNumericPattern(L)
+  const useSampling = N > sampleCutoff
+  let sampleIdxs: number[] = []
+  if (useSampling) {
+    const cum = new Float64Array(N)
+    let acc = 0
+    for (let i = 0; i < N; i++) {
+      acc += p[i]!
+      cum[i]! = acc
+    }
+    const rand = mulberry32(opts.seed ?? 123456789)
+    for (let k = 0; k < sampleSize; k++) {
+      const r = rand()
+      let lo = 0
+      let hi = N - 1
+      while (lo < hi) {
+        const mid = (lo + hi) >>> 1
+        if (cum[mid]! < r) lo = mid + 1
+        else hi = mid
+      }
+      sampleIdxs.push(lo)
+    }
+  }
+  const perGuessSecretCount = N > sampleCutoff ? sampleSize : N
+  const chunksPerGuess = Math.ceil(perGuessSecretCount / chunkSize)
+  const totalChunks = candidateIdxs.length * chunksPerGuess
+  let processedChunks = 0
+
+  let bestScoreSoFar = -Infinity
+  const results: { idx: number; eig: number; solveProb: number; expectedRemaining: number; score: number }[] = []
+
+  for (const guessIdx of candidateIdxs) {
+    if (checkCancel && checkCancel()) throw new CanceledError()
+    const guess = words[guessIdx]!
+    let patterns: Uint16Array | null = null
+    if (opts.getPrecomputedPatterns) {
+      try {
+        const maybe = await opts.getPrecomputedPatterns(guess)
+        patterns = maybe ?? null
+      } catch {
+        /* ignore provider errors: fallback to compute */
+      }
+    }
+    const accum: Record<string, PatternAccum> = Object.create(null)
+    let abortedEarly = false
+
+    if (!useSampling) {
+      if (patterns) {
+        for (let start = 0; start < N && !abortedEarly; start += chunkSize) {
+          const end = Math.min(N, start + chunkSize)
+            ;(() => {
+              for (let si = start; si < end; si++) {
+                const code = patterns![si]!
+                const key = numeric ? String(code) : String(code)
+                let a = accum[key]
+                if (!a) a = accum[key] = { mass: 0, massLog: 0, count: 0 }
+                const w = p[si]!
+                a.mass += w
+                if (w > 0) a.massLog += w * Math.log2(w)
+                a.count++
+              }
+            })()
+          processedChunks++
+          if (reportProgress) reportProgress(processedChunks / totalChunks)
+          if (earlyCut) {
+            // compute partial sum Σ_p mass_p * H(S_p)
+            let partialSum = 0
+            for (const key in accum) {
+              const a = accum[key]!
+              if (a.mass <= 0) continue
+              const Hpost = Math.log2(a.mass) - a.massLog / a.mass
+              partialSum += a.mass * Hpost
+            }
+            const eigUpper = H - partialSum
+            const solveProb = computeSolveProbIndex(words, p, guessIdx)
+            const scoreUpper = alpha * eigUpper + (1 - alpha) * solveProb
+            if (bestScoreSoFar !== -Infinity && scoreUpper + epsilon < bestScoreSoFar) {
+              abortedEarly = true
+            }
+          }
+          if (abortedEarly) break
+          if (checkCancel && checkCancel()) throw new CanceledError()
+        }
+      } else {
+        for (let start = 0; start < N && !abortedEarly; start += chunkSize) {
+          const end = Math.min(N, start + chunkSize)
+          for (let si = start; si < end; si++) {
+            const secret = words[si]!
+            const pat: PatternValue = feedbackPattern(guess, secret)
+            const key = numeric ? String(pat) : (pat as string)
+            let a = accum[key]
+            if (!a) a = accum[key] = { mass: 0, massLog: 0, count: 0 }
+            const w = p[si]!
+            a.mass += w
+            if (w > 0) a.massLog += w * Math.log2(w)
+            a.count++
+          }
+          processedChunks++
+          if (reportProgress) reportProgress(processedChunks / totalChunks)
+          if (earlyCut) {
+            let partialSum = 0
+            for (const key in accum) {
+              const a = accum[key]!
+              if (a.mass <= 0) continue
+              const Hpost = Math.log2(a.mass) - a.massLog / a.mass
+              partialSum += a.mass * Hpost
+            }
+            const eigUpper = H - partialSum
+            const solveProb = computeSolveProbIndex(words, p, guessIdx)
+            const scoreUpper = alpha * eigUpper + (1 - alpha) * solveProb
+            if (bestScoreSoFar !== -Infinity && scoreUpper + epsilon < bestScoreSoFar) {
+              abortedEarly = true
+            }
+          }
+          if (abortedEarly) break
+          if (checkCancel && checkCancel()) throw new CanceledError()
+        }
+      }
+    } else {
+      const nSamp = sampleIdxs.length
+      const inc = 1 / sampleSize
+      if (patterns) {
+        for (let start = 0; start < nSamp && !abortedEarly; start += chunkSize) {
+          const end = Math.min(nSamp, start + chunkSize)
+          for (let k = start; k < end; k++) {
+            const si = sampleIdxs[k]!
+            const code = patterns[si]!
+            const key = numeric ? String(code) : String(code)
+            let a = accum[key]
+            if (!a) a = accum[key] = { mass: 0, massLog: 0, count: 0 }
+            a.mass += inc
+            const w = p[si]!
+            if (w > 0) a.massLog += inc * Math.log2(w)
+            a.count++
+          }
+          processedChunks++
+          if (reportProgress) reportProgress(processedChunks / totalChunks)
+          if (earlyCut) {
+            let partialSum = 0
+            for (const key in accum) {
+              const a = accum[key]!
+              if (a.mass <= 0) continue
+              const Hpost = Math.log2(a.mass) - a.massLog / a.mass
+              partialSum += a.mass * Hpost
+            }
+            const eigUpper = H - partialSum
+            const solveProb = computeSolveProbIndex(words, p, guessIdx)
+            const scoreUpper = alpha * eigUpper + (1 - alpha) * solveProb
+            if (bestScoreSoFar !== -Infinity && scoreUpper + epsilon < bestScoreSoFar) {
+              abortedEarly = true
+            }
+          }
+          if (abortedEarly) break
+          if (checkCancel && checkCancel()) throw new CanceledError()
+        }
+      } else {
+        for (let start = 0; start < nSamp && !abortedEarly; start += chunkSize) {
+          const end = Math.min(nSamp, start + chunkSize)
+          for (let k = start; k < end; k++) {
+            const si = sampleIdxs[k]!
+            const secret = words[si]!
+            const pat: PatternValue = feedbackPattern(guess, secret)
+            const key = numeric ? String(pat) : (pat as string)
+            let a = accum[key]
+            if (!a) a = accum[key] = { mass: 0, massLog: 0, count: 0 }
+            a.mass += inc
+            const w = p[si]!
+            if (w > 0) a.massLog += inc * Math.log2(w)
+            a.count++
+          }
+          processedChunks++
+          if (reportProgress) reportProgress(processedChunks / totalChunks)
+          if (earlyCut) {
+            let partialSum = 0
+            for (const key in accum) {
+              const a = accum[key]!
+              if (a.mass <= 0) continue
+              const Hpost = Math.log2(a.mass) - a.massLog / a.mass
+              partialSum += a.mass * Hpost
+            }
+            const eigUpper = H - partialSum
+            const solveProb = computeSolveProbIndex(words, p, guessIdx)
+            const scoreUpper = alpha * eigUpper + (1 - alpha) * solveProb
+            if (bestScoreSoFar !== -Infinity && scoreUpper + epsilon < bestScoreSoFar) {
+              abortedEarly = true
+            }
+          }
+          if (abortedEarly) break
+          if (checkCancel && checkCancel()) throw new CanceledError()
+        }
+      }
+    }
+    if (abortedEarly) continue // skip final scoring for this guess
+
+    // finalize for guess
+    let sumHpost = 0
+    let expectedRemaining = 0
+    for (const key in accum) {
+      const a = accum[key]!
+      const mass = a.mass
+      if (mass <= 0) continue
+      const Hpost = Math.log2(mass) - a.massLog / mass
+      sumHpost += mass * Hpost
+      if (!useSampling) {
+        expectedRemaining += mass * a.count
+      } else {
+        expectedRemaining += mass * (a.count / sampleSize) * N
+      }
+    }
+    const eig = H - sumHpost
+    const solveProb = computeSolveProbIndex(words, p, guessIdx)
+    const score = alpha * eig + (1 - alpha) * solveProb
+    if (score > bestScoreSoFar) bestScoreSoFar = score
     results.push({ idx: guessIdx, eig, solveProb, expectedRemaining, score })
   }
 
