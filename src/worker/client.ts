@@ -30,11 +30,25 @@ export interface ScoreResult {
   canceled?: boolean
 }
 
+export interface HeatmapResult {
+  length: number
+  mass: number[][]
+  letterIndex: string[]
+}
+
+export interface GuessExplain {
+  guess: string
+  expectedGreens: number
+  posMatchMass: number[]
+  coverageMass: number
+  splits: Array<{ pattern: number | string; prob: number; bucketCount: number }>
+}
+
 interface PendingEntry<T = unknown> {
   resolve: (value: T) => void
   reject: (error: unknown) => void
   onProgress?: ProgressHandler
-  kind: 'warmup' | 'score' | 'dispose'
+  kind: 'warmup' | 'score' | 'dispose' | 'analyze:heatmap' | 'analyze:guess'
 }
 
 export class SolverWorkerClient {
@@ -72,6 +86,16 @@ export class SolverWorkerClient {
         if (this.currentScoreId === msg.id) this.currentScoreId = null
         const suggestions = msg.suggestions as ScoreResult['suggestions']
         entry.resolve({ suggestions } as ScoreResult)
+        return
+      }
+      case 'analyze:heatmap:result': {
+        this.pending.delete(msg.id)
+        entry.resolve(msg.result as HeatmapResult)
+        return
+      }
+      case 'analyze:guess:result': {
+        this.pending.delete(msg.id)
+        entry.resolve(msg.result as GuessExplain)
         return
       }
       case 'canceled': {
@@ -139,6 +163,34 @@ export class SolverWorkerClient {
           chunkSize: rest.chunkSize,
         },
       })
+    })
+  }
+
+  analyzeHeatmap(words: string[], priors: Record<string, number>): Promise<HeatmapResult> {
+    const id = this.nextId()
+    const priorsEntries = Object.entries(priors)
+    return new Promise<HeatmapResult>((resolve, reject) => {
+      this.pending.set(id, { resolve: resolve as (v: HeatmapResult) => void, reject, kind: 'analyze:heatmap' })
+      this.post({ id, type: 'analyze:heatmap', payload: { words, priors: priorsEntries } } as WorkerMsg)
+    })
+  }
+
+  analyzeGuess(args: { guess: string; words: string[]; priors: Record<string, number>; sampleCutoff?: number; sampleSize?: number }): Promise<GuessExplain> {
+    const id = this.nextId()
+    const priorsEntries = Object.entries(args.priors)
+    return new Promise<GuessExplain>((resolve, reject) => {
+      this.pending.set(id, { resolve: resolve as (v: GuessExplain) => void, reject, kind: 'analyze:guess' })
+      this.post({
+        id,
+        type: 'analyze:guess',
+        payload: {
+          guess: args.guess,
+          words: args.words,
+          priors: priorsEntries,
+          sampleCutoff: args.sampleCutoff,
+          sampleSize: args.sampleSize,
+        },
+      } as WorkerMsg)
     })
   }
 
