@@ -1,5 +1,7 @@
  
 import type { Msg as WorkerMsg, OutMsg } from './solver.worker'
+// Fallback (non-worker) analysis for environments where worker messages stall (e.g., certain test runners)
+import { letterPositionHeatmap, explainGuess } from '@/solver/analysis'
 
 // Progress handler (percent 0..1)
 export type ProgressHandler = (percent: number) => void
@@ -170,7 +172,43 @@ export class SolverWorkerClient {
     const id = this.nextId()
     const priorsEntries = Object.entries(priors)
     return new Promise<HeatmapResult>((resolve, reject) => {
-      this.pending.set(id, { resolve: resolve as (v: HeatmapResult) => void, reject, kind: 'analyze:heatmap' })
+      let settled = false
+      const timeout = setTimeout(() => {
+        if (settled) return
+        // Fallback locally
+        try {
+          // Build aligned priors array and feed into heatmap util
+          const pArr = new Float64Array(words.length)
+          let sum = 0
+          for (let i = 0; i < words.length; i++) sum += priors[words[i]!] || 0
+          for (let i = 0; i < words.length; i++) {
+            const val = priors[words[i]!] || 0
+            pArr[i] = sum > 0 ? val : 1 / words.length
+          }
+          settled = true
+          resolve(letterPositionHeatmap(words, pArr))
+          this.pending.delete(id)
+        } catch (e) {
+          settled = true
+          this.pending.delete(id)
+          reject(e)
+        }
+      }, 800) // quick fallback
+      this.pending.set(id, {
+        resolve: (v: HeatmapResult) => {
+          if (settled) return
+            settled = true
+            clearTimeout(timeout)
+            resolve(v)
+        },
+        reject: (e) => {
+          if (settled) return
+          settled = true
+          clearTimeout(timeout)
+          reject(e)
+        },
+        kind: 'analyze:heatmap',
+      })
       this.post({ id, type: 'analyze:heatmap', payload: { words, priors: priorsEntries } } as WorkerMsg)
     })
   }
@@ -179,7 +217,44 @@ export class SolverWorkerClient {
     const id = this.nextId()
     const priorsEntries = Object.entries(args.priors)
     return new Promise<GuessExplain>((resolve, reject) => {
-      this.pending.set(id, { resolve: resolve as (v: GuessExplain) => void, reject, kind: 'analyze:guess' })
+      let settled = false
+      const timeout = setTimeout(() => {
+        if (settled) return
+        try {
+          // Local fallback (no sampling for simplicity)
+          const words = args.words
+          const pArr = new Float64Array(words.length)
+          let sum = 0
+          for (let i = 0; i < words.length; i++) sum += args.priors[words[i]!] || 0
+          for (let i = 0; i < words.length; i++) {
+            const val = args.priors[words[i]!] || 0
+            pArr[i] = sum > 0 ? val : 1 / words.length
+          }
+          const res = explainGuess(args.guess, words, pArr, undefined)
+          settled = true
+          resolve(res)
+          this.pending.delete(id)
+        } catch (e) {
+          settled = true
+          this.pending.delete(id)
+          reject(e)
+        }
+      }, 800)
+      this.pending.set(id, {
+        resolve: (v: GuessExplain) => {
+          if (settled) return
+          settled = true
+          clearTimeout(timeout)
+          resolve(v)
+        },
+        reject: (e) => {
+          if (settled) return
+          settled = true
+          clearTimeout(timeout)
+          reject(e)
+        },
+        kind: 'analyze:guess',
+      })
       this.post({
         id,
         type: 'analyze:guess',

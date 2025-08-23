@@ -47,7 +47,12 @@ function AssistantAppInner() {
   // Apply body classes
   useEffect(() => {
     document.body.classList.toggle('colorblind', settings.colorblind)
+    document.body.classList.toggle('app-centered', !started)
   }, [settings.colorblind])
+
+  useEffect(() => {
+    document.body.classList.toggle('app-centered', !started)
+  }, [started])
 
   // Word list loading
   const [words, setWords] = useState<string[] | null>(null)
@@ -171,39 +176,43 @@ function AssistantAppInner() {
       <main className="flex-1 flex flex-col items-center gap-10 p-4 md:p-8 w-full max-w-5xl mx-auto">
         <h1 className="text-3xl font-semibold tracking-tight">Ibexicon</h1>
         {!started && (
-          <section className="w-full max-w-sm flex flex-col gap-4" aria-label="Setup">
-            <label className="flex flex-col gap-1 text-xs font-medium" title="Word length">
-              <span>Word length</span>
-              <select
-                className="px-3 py-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white/90 dark:bg-neutral-800/80 text-sm"
-                value={settings.length}
-                onChange={(e) => session.setLength(Number(e.target.value))}
-              >
-                {Array.from({ length: 12 }, (_, i) => 5 + i).map((L) => (
-                  <option key={L} value={L}>{L}</option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-xs font-medium" title="Max attempts">
-              <span>Attempts</span>
-              <input
-                type="number"
-                min={1}
-                max={100}
-                className="px-3 py-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white/90 dark:bg-neutral-800/80 text-sm"
-                value={settings.attemptsMax}
-                onChange={(e) => session.setAttemptsMax(Number(e.target.value))}
-              />
-            </label>
+          <section className="w-full max-w-md flex flex-col gap-5" aria-label="Setup">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label className="flex flex-col gap-1 text-xs font-medium" title="Word length">
+                <span>Word length</span>
+                <select
+                  className="px-3 py-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white/90 dark:bg-neutral-800/80 text-sm"
+                  value={settings.length}
+                  onChange={(e) => session.setLength(Number(e.target.value))}
+                >
+                  {Array.from({ length: 12 }, (_, i) => 5 + i).map((L) => (
+                    <option key={L} value={L}>{L}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium" title="Max attempts">
+                <span>Attempts</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  className="px-3 py-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white/90 dark:bg-neutral-800/80 text-sm"
+                  value={settings.attemptsMax}
+                  onChange={(e) => session.setAttemptsMax(Number(e.target.value))}
+                />
+              </label>
+            </div>
             <label className="flex items-center gap-2 text-xs" title="Colorblind mode">
               <input type="checkbox" checked={settings.colorblind} onChange={session.toggleColorblind} />
               <span>Colorblind mode</span>
             </label>
-            <button
-              type="button"
-              className="mt-2 px-6 py-2 rounded-md bg-blue-600 text-white font-semibold text-sm"
-              onClick={() => setStarted(true)}
-            >Start</button>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                className="px-6 py-2 rounded-md bg-blue-600 text-white font-semibold text-sm hover:bg-blue-500"
+                onClick={() => setStarted(true)}
+              >Start</button>
+            </div>
           </section>
         )}
         {started && (
@@ -254,7 +263,7 @@ function AssistantAppInner() {
           <div className="flex flex-col items-center gap-6 w-full">
             <Keyboard history={history} onKey={handleKeyboardKey} disabled={!words} />
             <div className="w-full max-w-5xl">
-              <div className="flex gap-2 mb-3 text-xs">
+              <div className="flex justify-center flex-wrap gap-2 mb-4 text-xs">
                 {[
                   { key: 'suggest', label: 'Suggest' },
                   { key: 'analysis', label: 'Analysis' },
@@ -277,17 +286,17 @@ function AssistantAppInner() {
               </div>
               <div>
                 {activeTab === 'suggest' && (
-                  <section aria-label="Suggestions" className="w-full max-w-xl">
+                  <section aria-label="Suggestions" className="w-full max-w-xl mx-auto">
                     <SuggestPanel session={session} />
                   </section>
                 )}
                 {activeTab === 'analysis' && (
-                  <section aria-label="Analysis" className="w-full">
+                  <section aria-label="Analysis" className="w-full max-w-3xl mx-auto">
                     <AnalysisPanel colorblind={settings.colorblind} />
                   </section>
                 )}
                 {activeTab === 'candidates' && (
-                  <section aria-label="Candidates" className="w-full">
+                  <section aria-label="Candidates" className="w-full max-w-xl mx-auto">
                     {candidates && words && (
                       <CandidateTable
                         words={candidates.getAliveWords()}
