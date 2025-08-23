@@ -56,11 +56,19 @@ export const AnalysisPanel: React.FC<{ colorblind?: boolean }> = ({ colorblind =
   }, [length])
 
   // Candidate set from history
-  const candidateSet = useMemo(() => (loaded ? buildCandidates(loaded.words, history) : null), [loaded, history])
+  const candidateSet = useMemo(
+    () => (loaded ? buildCandidates(loaded.words, history) : null),
+    [loaded, history],
+  )
 
   // Renormalized priors restricted to alive words
   const { aliveWords, renormPriorsArray, renormPriorsRecord } = useMemo(() => {
-    if (!candidateSet || !loaded) return { aliveWords: [] as string[], renormPriorsArray: [] as number[], renormPriorsRecord: {} as Record<string, number> }
+    if (!candidateSet || !loaded)
+      return {
+        aliveWords: [] as string[],
+        renormPriorsArray: [] as number[],
+        renormPriorsRecord: {} as Record<string, number>,
+      }
     const words = candidateSet.getAliveWords()
     let sum = 0
     for (const w of words) sum += loaded.priors[w] || 0
@@ -133,10 +141,19 @@ export const AnalysisPanel: React.FC<{ colorblind?: boolean }> = ({ colorblind =
       {!loading && !error && (
         <div className="analysis-inner">
           <div className="analysis-stats-row">
-            <div><strong>Length:</strong> {length}</div>
-            <div><strong>Candidates:</strong> {aliveWords.length.toLocaleString()}</div>
-            <div><strong>Entropy H(S):</strong> {H.toFixed(3)} bits</div>
-            <div><strong>Top letters:</strong> {topLetters.map((t) => `${t.pos}:${t.letter}(${t.mass.toFixed(2)})`).join(' ')}</div>
+            <div>
+              <strong>Length:</strong> {length}
+            </div>
+            <div>
+              <strong>Candidates:</strong> {aliveWords.length.toLocaleString()}
+            </div>
+            <div>
+              <strong>Entropy H(S):</strong> {H.toFixed(3)} bits
+            </div>
+            <div>
+              <strong>Top letters:</strong>{' '}
+              {topLetters.map((t) => `${t.pos}:${t.letter}(${t.mass.toFixed(2)})`).join(' ')}
+            </div>
           </div>
           {analyzing && <div className="analysis-analyzing">Analyzing…</div>}
           {heatmap && !analyzing && <LetterHeatmap result={heatmap} colorblind={colorblind} />}

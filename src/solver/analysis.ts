@@ -40,7 +40,11 @@ function normalizePriors(words: string[], priors: Float64Array): Float64Array {
 export function letterPositionHeatmap(words: string[], priors: Float64Array): HeatmapResult {
   const n = words.length
   if (n === 0) {
-    return { length: 0, mass: [], letterIndex: Array.from({ length: 26 }, (_, i) => String.fromCharCode(97 + i)) }
+    return {
+      length: 0,
+      mass: [],
+      letterIndex: Array.from({ length: 26 }, (_, i) => String.fromCharCode(97 + i)),
+    }
   }
   const L = words[0]!.length
   const p = normalizePriors(words, priors)
@@ -86,7 +90,9 @@ export interface GuessExplain {
   splits: GuessSplit[]
 }
 
-interface SampleSpec { size: number }
+interface SampleSpec {
+  size: number
+}
 
 // Weighted sampling without replacement using Efraimidis-Spirakis algorithm.
 function weightedSampleWithoutReplacement(weights: Float64Array, k: number): number[] {
@@ -111,14 +117,25 @@ function weightedSampleWithoutReplacement(weights: Float64Array, k: number): num
       keys.sort((a, b) => b.key - a.key)
     }
   }
-  return keys.map(kv => kv.idx)
+  return keys.map((kv) => kv.idx)
 }
 
-export function explainGuess(guess: string, words: string[], priors: Float64Array, sample?: SampleSpec | null): GuessExplain {
+export function explainGuess(
+  guess: string,
+  words: string[],
+  priors: Float64Array,
+  sample?: SampleSpec | null,
+): GuessExplain {
   const n = words.length
   const L = guess.length
   if (n === 0) {
-    return { guess, expectedGreens: 0, posMatchMass: new Array(L).fill(0), coverageMass: 0, splits: [] }
+    return {
+      guess,
+      expectedGreens: 0,
+      posMatchMass: new Array(L).fill(0),
+      coverageMass: 0,
+      splits: [],
+    }
   }
   const p = normalizePriors(words, priors)
 
@@ -128,7 +145,7 @@ export function explainGuess(guess: string, words: string[], priors: Float64Arra
   let guessMask = 0
   for (let i = 0; i < L; i++) {
     const c = guess.charCodeAt(i) - 97
-    if (c >= 0 && c < 26) guessMask |= (1 << c)
+    if (c >= 0 && c < 26) guessMask |= 1 << c
   }
 
   let coverageMass = 0
@@ -145,7 +162,7 @@ export function explainGuess(guess: string, words: string[], priors: Float64Arra
     let mask = 0
     for (let i = 0; i < w.length; i++) {
       const c = w.charCodeAt(i) - 97
-      if (c >= 0 && c < 26) mask |= (1 << c)
+      if (c >= 0 && c < 26) mask |= 1 << c
     }
     if ((mask & guessMask) !== 0) coverageMass += pk
   }
@@ -166,7 +183,7 @@ export function explainGuess(guess: string, words: string[], priors: Float64Arra
     if (sampleMass <= 0) sampleMass = 1 // avoid div by zero
   }
   const massScale = useSample ? 1 / sampleMass : 1
-  const countScale = useSample ? (words.length / indices.length) : 1
+  const countScale = useSample ? words.length / indices.length : 1
 
   const bucketProb = new Map<number | string, number>()
   const bucketCount = new Map<number | string, number>()

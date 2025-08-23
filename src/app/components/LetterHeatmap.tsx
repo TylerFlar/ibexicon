@@ -10,7 +10,11 @@ export interface LetterHeatmapProps {
 }
 
 // Build data array suitable for a scatter heatmap. Each cell => one point with z value as probability mass.
-export const LetterHeatmap: React.FC<LetterHeatmapProps> = ({ result, height = 420, colorblind = false }) => {
+export const LetterHeatmap: React.FC<LetterHeatmapProps> = ({
+  result,
+  height = 420,
+  colorblind = false,
+}) => {
   const { length: L, mass, letterIndex } = result
 
   const data = useMemo(() => {
@@ -31,9 +35,7 @@ export const LetterHeatmap: React.FC<LetterHeatmapProps> = ({ result, height = 4
   return (
     <div style={{ width: '100%', height }}>
       <ResponsiveContainer>
-        <ScatterChart
-          margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
-        >
+        <ScatterChart margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
           <XAxis
             type="number"
             dataKey="x"
@@ -72,7 +74,9 @@ export const LetterHeatmap: React.FC<LetterHeatmapProps> = ({ result, height = 4
               const cellSize = Math.min(32, Math.max(8, 560 / L))
               const mass = payload.z as number
               return (
-                <g aria-label={`pos ${payload.pos} letter ${payload.letter} mass ${mass.toFixed(3)}`}>
+                <g
+                  aria-label={`pos ${payload.pos} letter ${payload.letter} mass ${mass.toFixed(3)}`}
+                >
                   <rect
                     x={cx - cellSize / 2}
                     y={cy - cellSize / 2}

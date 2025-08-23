@@ -73,7 +73,7 @@ describe('scoring prefilter fidelity', () => {
     const baseScore = base.alpha * base.eig + (1 - base.alpha) * base.solveProb
     const filteredScore = filtered.alpha * filtered.eig + (1 - filtered.alpha) * filtered.solveProb
 
-  const TOL = 2e-2 // heuristic prefilter can exclude a near-tied guess; loosen tolerance for stability with deterministic priors.
+    const TOL = 2e-2 // heuristic prefilter can exclude a near-tied guess; loosen tolerance for stability with deterministic priors.
     if (filtered.guess === base.guess) {
       expect(filteredScore).toBeCloseTo(baseScore, 6)
     } else {

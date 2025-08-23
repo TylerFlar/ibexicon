@@ -22,11 +22,7 @@ export interface UseSessionResult extends SessionState {
 }
 
 export function useSession(): UseSessionResult {
-  const [state, dispatch] = useReducer(
-    reducer,
-    undefined,
-    () => loadPersisted() ?? initialState(5),
-  )
+  const [state, dispatch] = useReducer(reducer, undefined, () => loadPersisted() ?? initialState(5))
 
   // Persist on change
   useEffect(() => {
@@ -34,17 +30,13 @@ export function useSession(): UseSessionResult {
   }, [state])
 
   // Action helpers
-  const setLength = useCallback(
-    (length: number) => dispatch({ type: 'setLength', length }),
-    [],
-  )
+  const setLength = useCallback((length: number) => dispatch({ type: 'setLength', length }), [])
   const setGuessInput = useCallback(
     (value: string) => dispatch({ type: 'setGuessInput', value }),
     [],
   )
   const addGuess = useCallback(
-    (guess: string, trits: Trit[]) =>
-      dispatch({ type: 'addGuess', payload: { guess, trits } }),
+    (guess: string, trits: Trit[]) => dispatch({ type: 'addGuess', payload: { guess, trits } }),
     [],
   )
   const editTrit = useCallback(
@@ -54,15 +46,11 @@ export function useSession(): UseSessionResult {
   )
   const undo = useCallback(() => dispatch({ type: 'undo' }), [])
   const clear = useCallback(() => dispatch({ type: 'clear' }), [])
-  const toggleColorblind = useCallback(
-    () => dispatch({ type: 'toggleColorblind' }),
-    [],
-  )
+  const toggleColorblind = useCallback(() => dispatch({ type: 'toggleColorblind' }), [])
   const setAttemptsMax = useCallback(
     (value: number) => dispatch({ type: 'setAttemptsMax', value }),
     [],
   )
-  
 
   return {
     ...state,

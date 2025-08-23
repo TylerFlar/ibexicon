@@ -39,15 +39,18 @@ export function ToastProvider({ children }: ToastProviderProps) {
     }
   }, [])
 
-  const push = useCallback<ToastContextValue['push']>((t) => {
-    const id = Math.random().toString(36).slice(2)
-    const toast: Toast = { ttl: 4500, tone: 'info', ...t, id }
-    setToasts((prev) => [...prev, toast])
-    if (toast.ttl) {
-      const handle = window.setTimeout(() => remove(id), toast.ttl)
-      timers.current.set(id, handle)
-    }
-  }, [remove])
+  const push = useCallback<ToastContextValue['push']>(
+    (t) => {
+      const id = Math.random().toString(36).slice(2)
+      const toast: Toast = { ttl: 4500, tone: 'info', ...t, id }
+      setToasts((prev) => [...prev, toast])
+      if (toast.ttl) {
+        const handle = window.setTimeout(() => remove(id), toast.ttl)
+        timers.current.set(id, handle)
+      }
+    },
+    [remove],
+  )
 
   // Cleanup timers on unmount
   useEffect(() => () => timers.current.forEach((h) => window.clearTimeout(h)), [])
@@ -66,8 +69,8 @@ export function ToastProvider({ children }: ToastProviderProps) {
               t.tone === 'warn'
                 ? 'text-amber-800 dark:text-amber-300'
                 : t.tone === 'error'
-                ? 'text-red-700 dark:text-red-300'
-                : 'text-neutral-800 dark:text-neutral-200'
+                  ? 'text-red-700 dark:text-red-300'
+                  : 'text-neutral-800 dark:text-neutral-200'
             }`}
             role="status"
           >
@@ -87,8 +90,8 @@ export function ToastProvider({ children }: ToastProviderProps) {
                       a.tone === 'danger'
                         ? 'bg-red-600 text-white hover:bg-red-700'
                         : a.tone === 'primary'
-                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                        : 'bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600'
+                          ? 'bg-blue-600 text-white hover:bg-blue-700'
+                          : 'bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600'
                     }`}
                   >
                     {a.label}

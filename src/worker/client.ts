@@ -1,4 +1,3 @@
- 
 import type { Msg as WorkerMsg, OutMsg } from './solver.worker'
 // Fallback (non-worker) analysis for environments where worker messages stall (e.g., certain test runners)
 import { letterPositionHeatmap, explainGuess } from '@/solver/analysis'
@@ -73,7 +72,7 @@ export class SolverWorkerClient {
   }
 
   private handleMessage(msg: OutMsg): void {
-  const entry = this.pending.get(msg.id)
+    const entry = this.pending.get(msg.id)
     if (!entry) return // stale or already resolved
     switch (msg.type) {
       case 'progress':
@@ -125,7 +124,11 @@ export class SolverWorkerClient {
   warmup(): Promise<void> {
     const id = this.nextId()
     return new Promise<void>((resolve, reject) => {
-  this.pending.set(id, { resolve: resolve as (v: void) => void, reject: reject as (e: unknown) => void, kind: 'warmup' })
+      this.pending.set(id, {
+        resolve: resolve as (v: void) => void,
+        reject: reject as (e: unknown) => void,
+        kind: 'warmup',
+      })
       this.post({ id, type: 'warmup' })
     })
   }
@@ -147,13 +150,18 @@ export class SolverWorkerClient {
           signal.addEventListener('abort', abortHandler, { once: true })
         }
       }
-  this.pending.set(id, { resolve: resolve as (v: ScoreResult) => void, reject: reject as (e: unknown) => void, onProgress, kind: 'score' })
+      this.pending.set(id, {
+        resolve: resolve as (v: ScoreResult) => void,
+        reject: reject as (e: unknown) => void,
+        onProgress,
+        kind: 'score',
+      })
       this.post({
         id,
         type: 'score',
         payload: {
           words: rest.words,
-            priors: priorsEntries, // compact representation
+          priors: priorsEntries, // compact representation
           attemptsLeft: rest.attemptsLeft,
           attemptsMax: rest.attemptsMax,
           topK: rest.topK,
@@ -197,9 +205,9 @@ export class SolverWorkerClient {
       this.pending.set(id, {
         resolve: (v: HeatmapResult) => {
           if (settled) return
-            settled = true
-            clearTimeout(timeout)
-            resolve(v)
+          settled = true
+          clearTimeout(timeout)
+          resolve(v)
         },
         reject: (e) => {
           if (settled) return
@@ -209,11 +217,21 @@ export class SolverWorkerClient {
         },
         kind: 'analyze:heatmap',
       })
-      this.post({ id, type: 'analyze:heatmap', payload: { words, priors: priorsEntries } } as WorkerMsg)
+      this.post({
+        id,
+        type: 'analyze:heatmap',
+        payload: { words, priors: priorsEntries },
+      } as WorkerMsg)
     })
   }
 
-  analyzeGuess(args: { guess: string; words: string[]; priors: Record<string, number>; sampleCutoff?: number; sampleSize?: number }): Promise<GuessExplain> {
+  analyzeGuess(args: {
+    guess: string
+    words: string[]
+    priors: Record<string, number>
+    sampleCutoff?: number
+    sampleSize?: number
+  }): Promise<GuessExplain> {
     const id = this.nextId()
     const priorsEntries = Object.entries(args.priors)
     return new Promise<GuessExplain>((resolve, reject) => {

@@ -41,8 +41,8 @@ describe('App', () => {
 
     render(<App />)
     expect(screen.getByText(/Ibexicon/i)).toBeInTheDocument()
-  // length select option appears after async manifest load
-  const lengthSelect = await screen.findByLabelText('Word length')
-  expect(lengthSelect).toBeInTheDocument()
+    // length select option appears after async manifest load
+    const lengthSelect = await screen.findByLabelText('Word length')
+    expect(lengthSelect).toBeInTheDocument()
   })
 })

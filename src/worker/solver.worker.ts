@@ -54,7 +54,9 @@ export type OutMsg =
 
 let canceled = false
 
-function normalizePriors(priors: [string, number][] | Record<string, number>): Record<string, number> {
+function normalizePriors(
+  priors: [string, number][] | Record<string, number>,
+): Record<string, number> {
   if (Array.isArray(priors)) {
     const out: Record<string, number> = Object.create(null)
     for (const [w, v] of priors) out[w] = v
@@ -96,7 +98,10 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
         const out: OutMsg = { id: msg.id, type: 'warmup:ok' }
         ;(self as unknown as Worker).postMessage(out)
       } catch (err) {
-        const error = err instanceof Error ? { message: err.message, stack: err.stack } : { message: String(err) }
+        const error =
+          err instanceof Error
+            ? { message: err.message, stack: err.stack }
+            : { message: String(err) }
         const out: OutMsg = { id: msg.id, type: 'error', error }
         ;(self as unknown as Worker).postMessage(out)
       }
@@ -151,7 +156,10 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
           ;(self as unknown as Worker).postMessage(out)
           return
         }
-        const error = err instanceof Error ? { message: err.message, stack: err.stack } : { message: String(err) }
+        const error =
+          err instanceof Error
+            ? { message: err.message, stack: err.stack }
+            : { message: String(err) }
         const out: OutMsg = { id: msg.id, type: 'error', error }
         ;(self as unknown as Worker).postMessage(out)
       }
@@ -165,7 +173,10 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
         const out: OutMsg = { id: msg.id, type: 'analyze:heatmap:result', result }
         ;(self as unknown as Worker).postMessage(out)
       } catch (err) {
-        const error = err instanceof Error ? { message: err.message, stack: err.stack } : { message: String(err) }
+        const error =
+          err instanceof Error
+            ? { message: err.message, stack: err.stack }
+            : { message: String(err) }
         const out: OutMsg = { id: msg.id, type: 'error', error }
         ;(self as unknown as Worker).postMessage(out)
       }
@@ -184,7 +195,10 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
         const out: OutMsg = { id: msg.id, type: 'analyze:guess:result', result }
         ;(self as unknown as Worker).postMessage(out)
       } catch (err) {
-        const error = err instanceof Error ? { message: err.message, stack: err.stack } : { message: String(err) }
+        const error =
+          err instanceof Error
+            ? { message: err.message, stack: err.stack }
+            : { message: String(err) }
         const out: OutMsg = { id: msg.id, type: 'error', error }
         ;(self as unknown as Worker).postMessage(out)
       }

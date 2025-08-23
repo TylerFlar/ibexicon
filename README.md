@@ -102,17 +102,17 @@ const ac = makeAbortController()
 
 const { suggestions, canceled } = await client.score(
   {
-    words,            // string[] current alive secrets
-    priors,           // Record<string, number> (unnormalized or normalized)
+    words, // string[] current alive secrets
+    priors, // Record<string, number> (unnormalized or normalized)
     attemptsLeft: 6,
     attemptsMax: 6,
     topK: 3,
-    tau: null,        // or a number for temperature shaping
-    seed: 123,        // optional RNG seed for sampling path
+    tau: null, // or a number for temperature shaping
+    seed: 123, // optional RNG seed for sampling path
     sampleCutoff: 5000,
     sampleSize: 3000,
     prefilterLimit: 2000,
-    chunkSize: 8000,  // override default if desired
+    chunkSize: 8000, // override default if desired
     onProgress: (p) => console.log('Progress', (p * 100).toFixed(1) + '%'),
   },
   ac.signal,

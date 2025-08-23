@@ -12,11 +12,11 @@ import type { GuessEntry, Trit } from '../state/session'
 
 describe('constraints integration', () => {
   it('applies two-step history to reduce candidates', () => {
-    const vocab = ['crane','trace','react','cater','caret','crate']
+    const vocab = ['crane', 'trace', 'react', 'cater', 'caret', 'crate']
 
     const history: GuessEntry[] = []
     // Step 1: CRANE -> pattern 01200 (c absent, r present, a correct, n absent, e absent)
-    history.push({ guess: 'crane', trits: [0,1,2,0,0] as Trit[] })
+    history.push({ guess: 'crane', trits: [0, 1, 2, 0, 0] as Trit[] })
     // After step1 manual filtering:
     // - Must have 'r' but not at pos2
     // - 'a' must be at pos3
@@ -24,11 +24,11 @@ describe('constraints integration', () => {
     // Applying to vocab: trace(x - has c,e), react(x - has e,c), cater(x - has c,e), caret(x - has c,e), crate(x - has c,e) => none survive?
     // That would eliminate all; to keep interesting, adjust: allow 'e' absent rule to be 1 instead of 0 at final slot.
     // Revise pattern to 01100 (c absent, r present, a present, n absent, e absent) : meaning a present but NOT locked.
-    history[0] = { guess: 'crane', trits: [0,1,1,0,0] as Trit[] }
+    history[0] = { guess: 'crane', trits: [0, 1, 1, 0, 0] as Trit[] }
 
     // Step 2: TRACE -> choose pattern 20010 (t correct, r absent? conflict) => we need consistency. Instead craft simpler second guess.
     // Use second guess: CRATE with pattern 00210 (c absent, r absent, a correct, t present, e absent)
-    history.push({ guess: 'crate', trits: [0,0,2,1,0] as Trit[] })
+    history.push({ guess: 'crate', trits: [0, 0, 2, 1, 0] as Trit[] })
 
     const cs = buildCandidates(vocab, history)
     const survivors = cs.getAliveWords()

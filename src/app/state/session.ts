@@ -30,7 +30,6 @@ export type Action =
   | { type: 'clear' }
   | { type: 'toggleColorblind' }
   | { type: 'setAttemptsMax'; value: number }
-  
 
 export function initialState(length: number): SessionState {
   return {
@@ -69,10 +68,7 @@ export function reducer(state: SessionState, action: Action): SessionState {
     }
     case 'addGuess': {
       const { guess, trits } = action.payload
-      if (
-        guess.length !== state.settings.length ||
-        trits.length !== state.settings.length
-      ) {
+      if (guess.length !== state.settings.length || trits.length !== state.settings.length) {
         return state // invalid lengths ignored silently; could throw if preferred
       }
       // Ensure trits are 0|1|2

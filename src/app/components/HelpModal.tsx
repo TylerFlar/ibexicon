@@ -1,2 +1,3 @@
-
-export function HelpModal() { return null }
+export function HelpModal() {
+  return null
+}

@@ -39,7 +39,8 @@ export function Keyboard({ onKey, history, disabled }: KeyboardProps) {
           {r.map((k) => {
             const lower = k.toLowerCase()
             const t = letterStatus.get(lower)
-            const dataState = t === undefined ? undefined : t === 0 ? 'absent' : t === 1 ? 'present' : 'correct'
+            const dataState =
+              t === undefined ? undefined : t === 0 ? 'absent' : t === 1 ? 'present' : 'correct'
             return (
               <button
                 key={k}

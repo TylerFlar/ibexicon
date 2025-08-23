@@ -1,4 +1,3 @@
- 
 import { feedbackPattern } from '@/solver/feedback'
 import type { PatternValue } from '@/solver/pattern'
 import { useNumericPattern } from '@/solver/pattern'
@@ -206,7 +205,7 @@ export function suggestNext(input: ScoringInput, opts: ScoringOpts): Suggestion[
 
   // Map: pattern -> accum; we use JS object (string keys) even when numeric to avoid Map overhead on small sets
   // Progress accounting: total chunks across all guesses * secrets iteration
-  const perGuessSecretCount = (N > sampleCutoff) ? sampleSize : N
+  const perGuessSecretCount = N > sampleCutoff ? sampleSize : N
   const chunksPerGuess = Math.ceil(perGuessSecretCount / chunkSize)
   const totalChunks = candidateIdxs.length * chunksPerGuess
   let processedChunks = 0
@@ -243,7 +242,7 @@ export function suggestNext(input: ScoringInput, opts: ScoringOpts): Suggestion[
           const si = sampleIdxs[k]!
           const secret = words[si]!
           const pat: PatternValue = feedbackPattern(guess, secret)
-            const key = numeric ? String(pat) : (pat as string)
+          const key = numeric ? String(pat) : (pat as string)
           let a = accum[key]
           if (!a) a = accum[key] = { mass: 0, massLog: 0, count: 0 }
           a.mass += inc // approximate pattern probability

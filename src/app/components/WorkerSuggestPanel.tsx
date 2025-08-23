@@ -11,7 +11,10 @@ interface LoadedSet {
 
 export function WorkerSuggestPanel() {
   const workerAvailable = typeof Worker !== 'undefined'
-  const client = useMemo(() => (workerAvailable ? new SolverWorkerClient() : (null as any)), [workerAvailable])
+  const client = useMemo(
+    () => (workerAvailable ? new SolverWorkerClient() : (null as any)),
+    [workerAvailable],
+  )
   const [manifestLengths, setManifestLengths] = useState<number[]>([])
   const [selectedLen, setSelectedLen] = useState<number | null>(null)
   const [loaded, setLoaded] = useState<LoadedSet | null>(null)
@@ -34,7 +37,10 @@ export function WorkerSuggestPanel() {
       setManifestLengths(m.lengths)
       if (m.lengths.length) setSelectedLen(m.lengths[0]!)
     })
-    if (workerAvailable) client.warmup().catch(() => {/* ignore */})
+    if (workerAvailable)
+      client.warmup().catch(() => {
+        /* ignore */
+      })
     return () => {
       mounted = false
       if (workerAvailable) client.dispose()
@@ -63,7 +69,7 @@ export function WorkerSuggestPanel() {
   }, [selectedLen])
 
   function startScore() {
-  if (!loaded || !workerAvailable) return
+    if (!loaded || !workerAvailable) return
     if (abortRef.current) {
       abortRef.current.abort()
     }
@@ -106,7 +112,9 @@ export function WorkerSuggestPanel() {
     return (
       <section style={{ marginTop: '2rem' }}>
         <h2>Worker Suggest Panel</h2>
-        <p style={{ fontSize: '0.85rem', color: '#666' }}>Web Workers not available in this environment.</p>
+        <p style={{ fontSize: '0.85rem', color: '#666' }}>
+          Web Workers not available in this environment.
+        </p>
       </section>
     )
   }
@@ -150,7 +158,11 @@ export function WorkerSuggestPanel() {
         </label>
         <label>
           Tau (number or "auto"):
-          <input value={tauInput} onChange={(e) => setTauInput(e.target.value)} style={{ width: '6rem' }} />
+          <input
+            value={tauInput}
+            onChange={(e) => setTauInput(e.target.value)}
+            style={{ width: '6rem' }}
+          />
         </label>
         <label>
           Seed:
@@ -168,7 +180,9 @@ export function WorkerSuggestPanel() {
           Cancel
         </button>
       </div>
-      <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#444' }}>Status: {status}</div>
+      <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#444' }}>
+        Status: {status}
+      </div>
       <div
         style={{
           marginTop: '0.5rem',
@@ -196,27 +210,53 @@ export function WorkerSuggestPanel() {
         <table style={{ marginTop: '1rem', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
           <thead>
             <tr>
-              <th style={{ textAlign: 'left', padding: '4px 8px', borderBottom: '1px solid #ccc' }}>Guess</th>
-              <th style={{ textAlign: 'right', padding: '4px 8px', borderBottom: '1px solid #ccc' }}>EIG</th>
-              <th style={{ textAlign: 'right', padding: '4px 8px', borderBottom: '1px solid #ccc' }}>SolveProb</th>
-              <th style={{ textAlign: 'right', padding: '4px 8px', borderBottom: '1px solid #ccc' }}>Alpha</th>
-              <th style={{ textAlign: 'right', padding: '4px 8px', borderBottom: '1px solid #ccc' }}>E[Remain]</th>
+              <th style={{ textAlign: 'left', padding: '4px 8px', borderBottom: '1px solid #ccc' }}>
+                Guess
+              </th>
+              <th
+                style={{ textAlign: 'right', padding: '4px 8px', borderBottom: '1px solid #ccc' }}
+              >
+                EIG
+              </th>
+              <th
+                style={{ textAlign: 'right', padding: '4px 8px', borderBottom: '1px solid #ccc' }}
+              >
+                SolveProb
+              </th>
+              <th
+                style={{ textAlign: 'right', padding: '4px 8px', borderBottom: '1px solid #ccc' }}
+              >
+                Alpha
+              </th>
+              <th
+                style={{ textAlign: 'right', padding: '4px 8px', borderBottom: '1px solid #ccc' }}
+              >
+                E[Remain]
+              </th>
             </tr>
           </thead>
           <tbody>
             {suggestions.map((s) => (
               <tr key={s.guess}>
                 <td style={{ padding: '4px 8px', borderBottom: '1px solid #eee' }}>{s.guess}</td>
-                <td style={{ padding: '4px 8px', borderBottom: '1px solid #eee', textAlign: 'right' }}>
+                <td
+                  style={{ padding: '4px 8px', borderBottom: '1px solid #eee', textAlign: 'right' }}
+                >
                   {s.eig.toFixed(2)}
                 </td>
-                <td style={{ padding: '4px 8px', borderBottom: '1px solid #eee', textAlign: 'right' }}>
+                <td
+                  style={{ padding: '4px 8px', borderBottom: '1px solid #eee', textAlign: 'right' }}
+                >
                   {(s.solveProb * 100).toFixed(2)}%
                 </td>
-                <td style={{ padding: '4px 8px', borderBottom: '1px solid #eee', textAlign: 'right' }}>
+                <td
+                  style={{ padding: '4px 8px', borderBottom: '1px solid #eee', textAlign: 'right' }}
+                >
                   {s.alpha.toFixed(2)}
                 </td>
-                <td style={{ padding: '4px 8px', borderBottom: '1px solid #eee', textAlign: 'right' }}>
+                <td
+                  style={{ padding: '4px 8px', borderBottom: '1px solid #eee', textAlign: 'right' }}
+                >
                   {s.expectedRemaining.toFixed(1)}
                 </td>
               </tr>

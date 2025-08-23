@@ -1,1 +1,3 @@
-export function WhatIf() { return null }
+export function WhatIf() {
+  return null
+}

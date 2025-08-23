@@ -69,9 +69,7 @@ export function GuessRow({
     setTrits((prev) => prev.map((t, idx) => (idx === i ? v : t)) as Trit[])
   }
   const cycleTritAt = (i: number) => {
-    setTrits((prev) =>
-      prev.map((t, idx) => (idx === i ? (((t + 1) % 3) as Trit) : t)) as Trit[],
-    )
+    setTrits((prev) => prev.map((t, idx) => (idx === i ? (((t + 1) % 3) as Trit) : t)) as Trit[])
   }
 
   // pattern text entry removed
@@ -95,7 +93,9 @@ export function GuessRow({
   )
 
   const focusRef = useRef<HTMLDivElement | null>(null)
-  useEffect(() => { focusRef.current?.focus() }, [])
+  useEffect(() => {
+    focusRef.current?.focus()
+  }, [])
 
   return (
     <div
@@ -106,9 +106,25 @@ export function GuessRow({
       aria-label="Active guess row (type letters, then switch to Colors mode to set feedback)"
     >
       <div className="flex flex-col items-center gap-1 mb-1 w-full">
-        <div role="group" aria-label="Input mode" className="inline-flex rounded overflow-hidden border border-neutral-300 dark:border-neutral-600">
-          <button type="button" onClick={() => setMode('letters')} className={`px-3 py-1 text-[0.65rem] font-medium ${mode==='letters' ? 'bg-blue-600 text-white' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300'}`}>Letters</button>
-          <button type="button" onClick={() => setMode('colors')} className={`px-3 py-1 text-[0.65rem] font-medium ${mode==='colors' ? 'bg-blue-600 text-white' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300'}`}>Colors</button>
+        <div
+          role="group"
+          aria-label="Input mode"
+          className="inline-flex rounded overflow-hidden border border-neutral-300 dark:border-neutral-600"
+        >
+          <button
+            type="button"
+            onClick={() => setMode('letters')}
+            className={`px-3 py-1 text-[0.65rem] font-medium ${mode === 'letters' ? 'bg-blue-600 text-white' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300'}`}
+          >
+            Letters
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('colors')}
+            className={`px-3 py-1 text-[0.65rem] font-medium ${mode === 'colors' ? 'bg-blue-600 text-white' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300'}`}
+          >
+            Colors
+          </button>
         </div>
         <div className="text-[0.6rem] text-neutral-500 dark:text-neutral-400 text-center">
           {mode === 'letters' ? `${value.length}/${length} letters` : 'Tap tiles to cycle colors'}

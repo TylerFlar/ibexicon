@@ -154,9 +154,7 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
         )}
       </div>
       {loading && <p className="text-xs text-neutral-500">Loading wordlist…</p>}
-      {error && (
-        <p className="text-xs text-red-600 dark:text-red-400">Failed to load: {error}</p>
-      )}
+      {error && <p className="text-xs text-red-600 dark:text-red-400">Failed to load: {error}</p>}
       <div className="flex justify-center">
         <button
           type="button"
@@ -170,7 +168,7 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
       {inFlight && (
         <div className="h-2 bg-neutral-200 dark:bg-neutral-800 rounded overflow-hidden">
           <div
-            className="h-full bg-indigo-500 transition-all" 
+            className="h-full bg-indigo-500 transition-all"
             style={{ width: `${Math.round(progress * 100)}%` }}
           />
         </div>
@@ -195,7 +193,11 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
                         <button
                           type="button"
                           className="underline-offset-2 hover:underline"
-                          onClick={() => window.dispatchEvent(new CustomEvent('ibx:set-guess-input', { detail: s.guess }))}
+                          onClick={() =>
+                            window.dispatchEvent(
+                              new CustomEvent('ibx:set-guess-input', { detail: s.guess }),
+                            )
+                          }
                         >
                           {s.guess}
                         </button>
@@ -209,8 +211,12 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
                       </div>
                     </td>
                     <td className="p-1 text-right tabular-nums">{s.eig.toFixed(2)}</td>
-                    <td className="p-1 text-right tabular-nums">{(s.solveProb * 100).toFixed(1)}</td>
-                    <td className="p-1 text-right tabular-nums">{s.expectedRemaining.toFixed(1)}</td>
+                    <td className="p-1 text-right tabular-nums">
+                      {(s.solveProb * 100).toFixed(1)}
+                    </td>
+                    <td className="p-1 text-right tabular-nums">
+                      {s.expectedRemaining.toFixed(1)}
+                    </td>
                   </tr>
                   {openWhy[s.guess] && candidateWords.length > 0 && clientRef.current && (
                     <tr className="bg-neutral-50 dark:bg-neutral-900/40">

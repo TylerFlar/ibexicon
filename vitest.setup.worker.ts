@@ -1,4 +1,3 @@
- 
 // Inline Web Worker polyfill for Vitest (jsdom) environment.
 // Emulates minimal postMessage/onmessage contract used by SolverWorkerClient.
 import { suggestNext, CanceledError } from './src/solver/scoring'
@@ -9,11 +8,11 @@ if (typeof Worker === 'undefined') {
     payload: any
   }
   class InlineWorker {
-  onmessage: ((event: MessageEvent<any>) => void) | null = null // event used when invoked
+    onmessage: ((event: MessageEvent<any>) => void) | null = null // event used when invoked
     private canceled = false
     private disposed = false
     private current: PendingScore | null = null
-  constructor(_url: URL, _opts?: any) {}
+    constructor(_url: URL, _opts?: any) {}
     postMessage(msg: any) {
       if (this.disposed) return
       switch (msg.type) {
@@ -41,8 +40,22 @@ if (typeof Worker === 'undefined') {
       if (!job) return
       const { id, payload } = job
       try {
-        const { words, priors, attemptsLeft, attemptsMax, topK, tau, seed, sampleCutoff, sampleSize, prefilterLimit, chunkSize } = payload
-        const priorsRecord: Record<string, number> = Array.isArray(priors) ? Object.fromEntries(priors) : priors
+        const {
+          words,
+          priors,
+          attemptsLeft,
+          attemptsMax,
+          topK,
+          tau,
+          seed,
+          sampleCutoff,
+          sampleSize,
+          prefilterLimit,
+          chunkSize,
+        } = payload
+        const priorsRecord: Record<string, number> = Array.isArray(priors)
+          ? Object.fromEntries(priors)
+          : priors
         const suggestions = suggestNext(
           { words, priors: priorsRecord },
           {
@@ -69,7 +82,11 @@ if (typeof Worker === 'undefined') {
           this.emit({ id, type: 'canceled' })
         } else {
           const e2 = err as any
-            this.emit({ id, type: 'error', error: { message: String(e2?.message || e2), stack: e2?.stack } })
+          this.emit({
+            id,
+            type: 'error',
+            error: { message: String(e2?.message || e2), stack: e2?.stack },
+          })
         }
       } finally {
         this.current = null

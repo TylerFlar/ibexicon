@@ -76,17 +76,18 @@ export function Tile({
       type="button"
       tabIndex={0}
       aria-label={`Letter ${letter || 'blank'} at position ${index + 1} is ${valueLabels[value]}`}
-  className="tile relative text-lg font-semibold"
-  data-state={valueLabels[value]}
-  data-selected={selected ? 'true' : undefined}
+      className="tile relative text-lg font-semibold"
+      data-state={valueLabels[value]}
+      data-selected={selected ? 'true' : undefined}
       onClick={handleClick}
-      onContextMenu={(e) => { e.preventDefault(); if (!disabled && !disableCycle) cycle(e) }}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        if (!disabled && !disableCycle) cycle(e)
+      }}
       onKeyDown={handleKey}
       disabled={disabled}
     >
-      <span className="pointer-events-none select-none">
-        {letter || ''}
-      </span>
+      <span className="pointer-events-none select-none">{letter || ''}</span>
       {colorblind && value !== 0 && (
         <span
           aria-hidden

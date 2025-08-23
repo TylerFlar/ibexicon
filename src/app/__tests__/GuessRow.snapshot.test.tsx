@@ -11,14 +11,14 @@ describe('GuessRow snapshot', () => {
       <GuessRow
         length={5}
         value={'crane'}
-        onChange={()=>{}}
-        onCommit={()=>{}}
+        onChange={() => {}}
+        onCommit={() => {}}
         colorblind={true}
-      />
+      />,
     )
     // 5 tiles + button (text input removed)
     const tiles = container.querySelectorAll('.tile')
     expect(tiles.length).toBe(5)
-  // Snapshot removed (UI simplified); structural assertion above is sufficient.
+    // Snapshot removed (UI simplified); structural assertion above is sufficient.
   })
 })

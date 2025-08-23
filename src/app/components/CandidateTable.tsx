@@ -34,7 +34,9 @@ export const CandidateTable: React.FC<CandidateTableProps> = ({ words, priors, m
         </tbody>
       </table>
       {words.length > rows.length && (
-        <div className="p-1 text-[0.55rem] text-neutral-500 text-right">Showing top {rows.length} / {words.length}</div>
+        <div className="p-1 text-[0.55rem] text-neutral-500 text-right">
+          Showing top {rows.length} / {words.length}
+        </div>
       )}
     </div>
   )

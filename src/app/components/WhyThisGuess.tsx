@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { SolverWorkerClient, type GuessExplain } from '@/worker/client'
 import { decodePattern } from '@/solver/pattern'
 import { feedbackPattern } from '@/solver/feedback'
@@ -49,26 +49,36 @@ export const WhyThisGuess: React.FC<WhyThisGuessProps> = ({ guess, words, priors
     }
   }, [client, guess, words, priors])
 
-  const patternToString = (p: number | string): string => {
-    if (typeof p === 'string') {
-      if (p.length === L) return p
-      // fallback decode numeric-like string
-      const num = Number(p)
-      if (Number.isFinite(num)) return decodePattern(num, L).join('')
-      return p
-    }
-    return decodePattern(p, L).join('')
-  }
+  const patternToString = useCallback(
+    (p: number | string): string => {
+      if (typeof p === 'string') {
+        if (p.length === L) return p
+        // fallback decode numeric-like string
+        const num = Number(p)
+        if (Number.isFinite(num)) return decodePattern(num, L).join('')
+        return p
+      }
+      return decodePattern(p, L).join('')
+    },
+    [L],
+  )
 
   const topPatterns: PatternRow[] = useMemo(() => {
     if (!data) return []
-    const rows = data.splits
+    return data.splits
       .slice(0, 6)
-      .map((s) => ({ pattern: s.pattern, patternStr: patternToString(s.pattern), prob: s.prob, bucketCount: s.bucketCount }))
-    return rows
-  }, [data])
+      .map((s) => ({
+        pattern: s.pattern,
+        patternStr: patternToString(s.pattern),
+        prob: s.prob,
+        bucketCount: s.bucketCount,
+      }))
+  }, [data, patternToString])
 
-  const sumBucketCounts = useMemo(() => data?.splits.reduce((a, b) => a + b.bucketCount, 0) || 0, [data])
+  const sumBucketCounts = useMemo(
+    () => data?.splits.reduce((a, b) => a + b.bucketCount, 0) || 0,
+    [data],
+  )
   const approximateCounts = sumBucketCounts !== words.length && sumBucketCounts !== 0
 
   // Largest bucket first pattern (already sorted in worker by prob desc)
@@ -97,9 +107,15 @@ export const WhyThisGuess: React.FC<WhyThisGuessProps> = ({ guess, words, priors
       {!loading && !error && data && (
         <>
           <div className="flex flex-wrap gap-2">
-            <div><strong>Guess:</strong> <span className="font-mono">{guess}</span></div>
-            <div><strong>Expected greens:</strong> {data.expectedGreens.toFixed(2)}</div>
-            <div><strong>Coverage:</strong> {(data.coverageMass * 100).toFixed(1)}%</div>
+            <div>
+              <strong>Guess:</strong> <span className="font-mono">{guess}</span>
+            </div>
+            <div>
+              <strong>Expected greens:</strong> {data.expectedGreens.toFixed(2)}
+            </div>
+            <div>
+              <strong>Coverage:</strong> {(data.coverageMass * 100).toFixed(1)}%
+            </div>
           </div>
           <div>
             <strong>Per-position match mass</strong>
@@ -107,7 +123,10 @@ export const WhyThisGuess: React.FC<WhyThisGuessProps> = ({ guess, words, priors
               {posBars.map((v, i) => {
                 const h = maxPosMass > 0 ? (v / maxPosMass) * 100 : 0
                 return (
-                  <div key={i} className="relative flex-1 bg-neutral-200 dark:bg-neutral-800 rounded-sm overflow-hidden">
+                  <div
+                    key={i}
+                    className="relative flex-1 bg-neutral-200 dark:bg-neutral-800 rounded-sm overflow-hidden"
+                  >
                     <div
                       className="absolute bottom-0 left-0 right-0 bg-indigo-500 dark:bg-indigo-400"
                       style={{ height: `${h}%` }}
@@ -145,7 +164,9 @@ export const WhyThisGuess: React.FC<WhyThisGuessProps> = ({ guess, words, priors
           </div>
           {previewWords.length > 0 && (
             <details>
-              <summary className="cursor-pointer">Example bucket words (pattern {patternToString(largestPattern!)})</summary>
+              <summary className="cursor-pointer">
+                Example bucket words (pattern {patternToString(largestPattern!)})
+              </summary>
               <div className="mt-1 flex flex-wrap gap-1 font-mono">
                 {previewWords.map((w) => (
                   <span

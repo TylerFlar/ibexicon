@@ -1,1 +1,3 @@
-export function ControlsBar() { return null }
+export function ControlsBar() {
+  return null
+}

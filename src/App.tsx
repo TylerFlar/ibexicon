@@ -6,8 +6,9 @@ import { ToastProvider, useToasts } from '@/app/components/Toaster'
 import { loadWordlistSet } from '@/solver/data/loader'
 import { buildCandidates, wouldEliminateAll } from '@/app/logic/constraints'
 import { SuggestPanel } from '@/app/components/SuggestPanel'
-import AnalysisPanel from '@/app/components/AnalysisPanel'
-import CandidateTable from '@/app/components/CandidateTable'
+import { lazy, Suspense } from 'react'
+const AnalysisPanel = lazy(() => import('@/app/components/AnalysisPanel'))
+const CandidateTable = lazy(() => import('@/app/components/CandidateTable'))
 import type { Trit } from '@/app/state/session'
 
 function AssistantAppInner() {
@@ -19,40 +20,46 @@ function AssistantAppInner() {
   const UI_KEY = 'ibexicon:ui'
   const [activeTab, setActiveTab] = useState<'suggest' | 'analysis' | 'candidates'>(() => {
     if (typeof window === 'undefined') return 'suggest'
+    const raw = window.localStorage.getItem(UI_KEY)
+    if (!raw) return 'suggest'
     try {
-      const raw = window.localStorage.getItem(UI_KEY)
-      if (raw) {
-        const parsed = JSON.parse(raw)
-        if (parsed.tab === 'analysis' || parsed.tab === 'candidates' || parsed.tab === 'suggest') {
-          return parsed.tab
-        }
+      const parsed = JSON.parse(raw)
+      if (
+        parsed &&
+        (parsed.tab === 'analysis' || parsed.tab === 'candidates' || parsed.tab === 'suggest')
+      ) {
+        return parsed.tab
       }
-    } catch {}
+    } catch (e) {
+      /* ignore parse */
+    }
     return 'suggest'
   })
   // persist tab choice
   useEffect(() => {
     if (typeof window === 'undefined') return
-    try {
-      const existing = window.localStorage.getItem(UI_KEY)
-      let obj: any = {}
-      if (existing) {
-        try { obj = JSON.parse(existing) } catch {}
+    let obj: any = {}
+    const existing = window.localStorage.getItem(UI_KEY)
+    if (existing) {
+      try {
+        obj = JSON.parse(existing)
+      } catch (e) {
+        /* ignore parse */
       }
-      obj.tab = activeTab
+    }
+    obj.tab = activeTab
+    try {
       window.localStorage.setItem(UI_KEY, JSON.stringify(obj))
-    } catch {}
+    } catch (e) {
+      /* ignore quota */
+    }
   }, [activeTab])
 
-  // Apply body classes
+  // Apply body classes (colorblind + centered pre-start)
   useEffect(() => {
     document.body.classList.toggle('colorblind', settings.colorblind)
     document.body.classList.toggle('app-centered', !started)
-  }, [settings.colorblind])
-
-  useEffect(() => {
-    document.body.classList.toggle('app-centered', !started)
-  }, [started])
+  }, [settings.colorblind, started])
 
   // Word list loading
   const [words, setWords] = useState<string[] | null>(null)
@@ -79,10 +86,17 @@ function AssistantAppInner() {
     }
   }, [settings.length, push])
 
-  const candidates = useMemo(() => (words ? buildCandidates(words, history) : null), [words, history])
+  const candidates = useMemo(
+    () => (words ? buildCandidates(words, history) : null),
+    [words, history],
+  )
   const candidateCount = candidates?.getAliveWords().length ?? 0
 
-  const [pendingConfirm, setPendingConfirm] = useState<null | { kind: 'offlist' | 'eliminate'; guess: string; trits: Trit[] }>(null)
+  const [pendingConfirm, setPendingConfirm] = useState<null | {
+    kind: 'offlist' | 'eliminate'
+    guess: string
+    trits: Trit[]
+  }>(null)
   const isInWordlist = (g: string) => !!words && words.includes(g)
 
   const commitGuess = (guess: string, trits: Trit[]) => {
@@ -158,7 +172,7 @@ function AssistantAppInner() {
   }
 
   const boardRows = history.map((h, idx) => (
-    <div key={idx} className="flex gap-1" aria-label={`Guess ${idx + 1}`}> 
+    <div key={idx} className="flex gap-1" aria-label={`Guess ${idx + 1}`}>
       {Array.from({ length: settings.length }, (_, i) => (
         <div
           key={i}
@@ -186,7 +200,9 @@ function AssistantAppInner() {
                   onChange={(e) => session.setLength(Number(e.target.value))}
                 >
                   {Array.from({ length: 12 }, (_, i) => 5 + i).map((L) => (
-                    <option key={L} value={L}>{L}</option>
+                    <option key={L} value={L}>
+                      {L}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -203,7 +219,11 @@ function AssistantAppInner() {
               </label>
             </div>
             <label className="flex items-center gap-2 text-xs" title="Colorblind mode">
-              <input type="checkbox" checked={settings.colorblind} onChange={session.toggleColorblind} />
+              <input
+                type="checkbox"
+                checked={settings.colorblind}
+                onChange={session.toggleColorblind}
+              />
               <span>Colorblind mode</span>
             </label>
             <div className="flex justify-end">
@@ -211,21 +231,34 @@ function AssistantAppInner() {
                 type="button"
                 className="px-6 py-2 rounded-md bg-blue-600 text-white font-semibold text-sm hover:bg-blue-500"
                 onClick={() => setStarted(true)}
-              >Start</button>
+              >
+                Start
+              </button>
             </div>
           </section>
         )}
         {started && (
           <div className="flex flex-wrap gap-3 justify-center text-xs -mt-4">
-            <div className="px-3 py-1 rounded-full bg-neutral-200 dark:bg-neutral-700">{history.length}/{settings.attemptsMax} attempts</div>
+            <div className="px-3 py-1 rounded-full bg-neutral-200 dark:bg-neutral-700">
+              {history.length}/{settings.attemptsMax} attempts
+            </div>
             <button
               type="button"
               className="px-3 py-1 rounded-full bg-red-500 text-white hover:bg-red-600"
-              onClick={() => { session.clear(); setStarted(false); }}
-            >Restart</button>
+              onClick={() => {
+                session.clear()
+                setStarted(false)
+              }}
+            >
+              Restart
+            </button>
           </div>
         )}
-        <section className="flex flex-col gap-3 items-center" aria-label="Guess history and active row" style={{ maxWidth: '100%' }}>
+        <section
+          className="flex flex-col gap-3 items-center"
+          aria-label="Guess history and active row"
+          style={{ maxWidth: '100%' }}
+        >
           <div className="flex flex-col gap-1 items-center" aria-live="polite">
             {/* Past guesses */}
             {started && boardRows}
@@ -253,7 +286,8 @@ function AssistantAppInner() {
               {loadingWords && <span>Loading…</span>}
               {!loadingWords && words && (
                 <span>
-                  {words.length.toLocaleString()} words • Candidates: {candidateCount.toLocaleString()}
+                  {words.length.toLocaleString()} words • Candidates:{' '}
+                  {candidateCount.toLocaleString()}
                 </span>
               )}
             </div>
@@ -292,17 +326,25 @@ function AssistantAppInner() {
                 )}
                 {activeTab === 'analysis' && (
                   <section aria-label="Analysis" className="w-full max-w-3xl mx-auto">
-                    <AnalysisPanel colorblind={settings.colorblind} />
+                    <Suspense
+                      fallback={<div className="text-xs text-neutral-500">Loading analysis…</div>}
+                    >
+                      <AnalysisPanel colorblind={settings.colorblind} />
+                    </Suspense>
                   </section>
                 )}
                 {activeTab === 'candidates' && (
                   <section aria-label="Candidates" className="w-full max-w-xl mx-auto">
-                    {candidates && words && (
-                      <CandidateTable
-                        words={candidates.getAliveWords()}
-                        priors={{}} /* optionally pass renormalized priors here later */
-                      />
-                    )}
+                    <Suspense
+                      fallback={<div className="text-xs text-neutral-500">Loading candidates…</div>}
+                    >
+                      {candidates && words && (
+                        <CandidateTable
+                          words={candidates.getAliveWords()}
+                          priors={{}} /* optionally pass renormalized priors here later */
+                        />
+                      )}
+                    </Suspense>
                   </section>
                 )}
               </div>
