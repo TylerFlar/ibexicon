@@ -157,5 +157,5 @@ Icon?
 !.vscode/extensions.json
 !.vscode/settings.json
 
-# Misc
-data/
+# Test
+*.snap
