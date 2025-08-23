@@ -84,11 +84,21 @@ async function runJobs(jobs: Job[], concurrency: number): Promise<ShardResult[]>
         active++
         const startTs = Date.now()
         process.stdout.write(`Start ${job.policy}@L${job.length} (seed=${job.seed})\n`)
-        // Determine how to preload tsx depending on Node version:
-        // - Node >= 20 supports --import=specifier (preferred; keeps ESM semantics)
-        // - Node 16/18 (LTS still present on some CI runners) lack stable --import, so we fall back to --loader.
-  const tsxPreload = ['--loader', 'tsx']
-  const worker = new Worker(new URL('./worker.ts', import.meta.url), {
+        // Determine how to preload tsx depending on Node version.
+        // CI failure (Node 24.6) showed: "tsx must be loaded with --import instead of --loader".
+        // The --loader flag was deprecated in Node v20.6.0 and v18.19.0. Newer tsx versions now
+        // require --import where available. We choose --import if the running Node version
+        // is >= 20.6 or >= 18.19 (mirroring deprecation) and fall back to --loader for older
+        // environments (e.g., local older LTS) where --import might not exist.
+        const [vMaj, vMin] = process.versions.node.split('.').map(n => Number(n))
+        const useImport = (
+          vMaj > 20 ||
+          (vMaj === 20 && vMin >= 6) ||
+          (vMaj === 19) || // 19.x (non-LTS) had the newer loader behavior
+          (vMaj === 18 && vMin >= 19)
+        )
+        const tsxPreload = useImport ? ['--import', 'tsx'] : ['--loader', 'tsx']
+        const worker = new Worker(new URL('./worker.ts', import.meta.url), {
           // Preload tsx so subsequent TypeScript imports (worker.ts and its deps) work.
           execArgv: tsxPreload,
           workerData: job,
