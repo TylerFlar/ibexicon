@@ -8,6 +8,8 @@ import { buildCandidates, wouldEliminateAll } from '@/app/logic/constraints'
 import { SuggestPanel } from '@/app/components/SuggestPanel'
 import { lazy, Suspense } from 'react'
 import { PrecomputeBanner } from '@/app/components/PrecomputeBanner'
+import { CacheDebug } from '@/app/components/CacheDebug'
+import { DebugPage } from '@/app/components/DebugPage'
 import { SolverWorkerClient } from '@/worker/client'
 const AnalysisPanel = lazy(() => import('@/app/components/AnalysisPanel'))
 const CandidateTable = lazy(() => import('@/app/components/CandidateTable'))
@@ -15,6 +17,14 @@ const LazyLeaderboard = lazy(() => import('@/app/components/Leaderboard'))
 import type { Trit } from '@/app/state/session'
 
 function AssistantAppInner() {
+  // Secret route detection: query ?__debug=1 or hash #__debug
+  const secretDebug = (() => {
+    if (typeof window === 'undefined') return false
+    return /[?&]__debug=1/.test(window.location.search) || window.location.hash === '#__debug'
+  })()
+  if (secretDebug) {
+    return <DebugPage />
+  }
   const session = useSession()
   const { settings, history, guessInput, setGuessInput, addGuess } = session
   const { push } = useToasts()
@@ -308,6 +318,7 @@ function AssistantAppInner() {
             <Keyboard history={history} onKey={handleKeyboardKey} disabled={!words} />
             <div className="w-full max-w-5xl">
               <PrecomputeBanner client={workerClient} length={settings.length} words={words} />
+              <CacheDebug client={workerClient} length={settings.length} />
               <div className="flex justify-center flex-wrap gap-2 mb-4 text-xs">
                 {[
                   { key: 'suggest', label: 'Suggest' },

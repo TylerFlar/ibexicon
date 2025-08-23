@@ -69,3 +69,44 @@ export async function clearStore(): Promise<void> {
     /* ignore */
   }
 }
+
+export async function countPtabForLength(L: number): Promise<number> {
+  try {
+    const store = await withStore('readonly')
+    const prefix = `${L}:`
+    return await new Promise<number>((resolve, reject) => {
+      let count = 0
+      const req = store.openCursor()
+      req.onerror = () => reject(req.error)
+      req.onsuccess = () => {
+        const cur = req.result
+        if (!cur) return resolve(count)
+        if (typeof cur.key === 'string' && cur.key.startsWith(prefix)) count++
+        cur.continue()
+      }
+    })
+  } catch {
+    return 0
+  }
+}
+
+export async function deletePtabForLength(L: number): Promise<void> {
+  try {
+    const store = await withStore('readwrite')
+    const prefix = `${L}:`
+    await new Promise<void>((resolve, reject) => {
+      const req = store.openCursor()
+      req.onerror = () => reject(req.error)
+      req.onsuccess = () => {
+        const cur = req.result
+        if (!cur) return resolve()
+        if (typeof cur.key === 'string' && cur.key.startsWith(prefix)) {
+          cur.delete()
+        }
+        cur.continue()
+      }
+    })
+  } catch {
+    /* ignore */
+  }
+}

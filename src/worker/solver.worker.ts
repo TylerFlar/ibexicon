@@ -2,11 +2,15 @@
 import { suggestNextWithProvider, CanceledError } from '@/solver/scoring'
 import { letterPositionHeatmap, explainGuess } from '@/solver/analysis'
 import { createPatternProvider } from './ptabCache'
+import { countPtabForLength, deletePtabForLength } from './idb'
 
 // Message definitions (incoming)
 export type Msg =
   | { id: number; type: 'warmup'; payload?: { length?: number; words?: string[] } }
   | { id: number; type: 'ptab:ensure'; payload: { length: number; words: string[] } }
+  | { id: number; type: 'ptab:stats'; payload: { length: number } }
+  | { id: number; type: 'ptab:clearMemory'; payload: { length: number } }
+  | { id: number; type: 'ptab:clearIDB'; payload: { length: number } }
   | {
       id: number
       type: 'score'
@@ -50,6 +54,7 @@ export type OutMsg =
   | { id: number; type: 'warmup:ok' }
   | { id: number; type: 'ptab:progress'; stage: string; percent: number }
   | { id: number; type: 'ptab:ready'; meta: { L: number; N: number; M: number; hash32: number } }
+  | { id: number; type: 'ptab:stats:result'; stats: { length: number; memorySeedPlanes: number; memoryFallback: number; idbEntries: number } }
   | { id: number; type: 'progress'; p: number }
   | { id: number; type: 'result'; suggestions: unknown }
   | { id: number; type: 'analyze:heatmap:result'; result: unknown }
@@ -132,6 +137,49 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
             type: 'ptab:ready',
             meta: meta ? meta : { L: length, N: words.length, M: 0, hash32: 0 },
         }
+        ;(self as unknown as Worker).postMessage(out)
+      } catch (err) {
+        const error = err instanceof Error ? { message: err.message, stack: err.stack } : { message: String(err) }
+        const out: OutMsg = { id: msg.id, type: 'error', error }
+        ;(self as unknown as Worker).postMessage(out)
+      }
+      return
+    }
+    case 'ptab:stats': {
+      const { length } = msg.payload
+      try {
+        const statsMem = patternProvider.statsForLength(length)
+        const idbEntries = await countPtabForLength(length)
+        const out: OutMsg = {
+          id: msg.id,
+          type: 'ptab:stats:result',
+          stats: { length, memorySeedPlanes: statsMem.memorySeedPlanes, memoryFallback: statsMem.memoryFallback, idbEntries },
+        }
+        ;(self as unknown as Worker).postMessage(out)
+      } catch (err) {
+        const error = err instanceof Error ? { message: err.message, stack: err.stack } : { message: String(err) }
+        const out: OutMsg = { id: msg.id, type: 'error', error }
+        ;(self as unknown as Worker).postMessage(out)
+      }
+      return
+    }
+    case 'ptab:clearMemory': {
+      try {
+        patternProvider.clearFallbackForLength(msg.payload.length)
+        const out: OutMsg = { id: msg.id, type: 'ptab:stats:result', stats: { length: msg.payload.length, memorySeedPlanes: 0, memoryFallback: 0, idbEntries: 0 } }
+        ;(self as unknown as Worker).postMessage(out)
+      } catch (err) {
+        const error = err instanceof Error ? { message: err.message, stack: err.stack } : { message: String(err) }
+        const out: OutMsg = { id: msg.id, type: 'error', error }
+        ;(self as unknown as Worker).postMessage(out)
+      }
+      return
+    }
+    case 'ptab:clearIDB': {
+      try {
+        await deletePtabForLength(msg.payload.length)
+        const statsMem = patternProvider.statsForLength(msg.payload.length)
+        const out: OutMsg = { id: msg.id, type: 'ptab:stats:result', stats: { length: msg.payload.length, memorySeedPlanes: statsMem.memorySeedPlanes, memoryFallback: statsMem.memoryFallback, idbEntries: 0 } }
         ;(self as unknown as Worker).postMessage(out)
       } catch (err) {
         const error = err instanceof Error ? { message: err.message, stack: err.stack } : { message: String(err) }

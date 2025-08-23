@@ -50,7 +50,7 @@ interface PendingEntry<T = unknown> {
   reject: (error: unknown) => void
   onProgress?: ProgressHandler
   onPtabProgress?: (stage: string, percent: number) => void
-  kind: 'warmup' | 'score' | 'dispose' | 'analyze:heatmap' | 'analyze:guess' | 'ptab:ensure'
+  kind: 'warmup' | 'score' | 'dispose' | 'analyze:heatmap' | 'analyze:guess' | 'ptab:ensure' | 'ptab:stats' | 'ptab:clear'
 }
 
 export class SolverWorkerClient {
@@ -90,6 +90,11 @@ export class SolverWorkerClient {
       case 'ptab:ready': {
         this.pending.delete(msg.id)
         entry.resolve(msg.meta)
+        return
+      }
+      case 'ptab:stats:result': {
+        this.pending.delete(msg.id)
+        entry.resolve(msg.stats)
         return
       }
       case 'result': {
@@ -157,6 +162,30 @@ export class SolverWorkerClient {
         onPtabProgress: onProgress,
       })
       this.post({ id, type: 'ptab:ensure', payload: { length, words } } as WorkerMsg)
+    })
+  }
+
+  ptabStats(length: number): Promise<{ length: number; memorySeedPlanes: number; memoryFallback: number; idbEntries: number }> {
+    const id = this.nextId()
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve, reject, kind: 'ptab:stats' })
+      this.post({ id, type: 'ptab:stats', payload: { length } } as WorkerMsg)
+    })
+  }
+
+  clearPtabMemory(length: number): Promise<void> {
+    const id = this.nextId()
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve: () => resolve(), reject, kind: 'ptab:clear' })
+      this.post({ id, type: 'ptab:clearMemory', payload: { length } } as WorkerMsg)
+    })
+  }
+
+  clearPtabIDB(length: number): Promise<void> {
+    const id = this.nextId()
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve: () => resolve(), reject, kind: 'ptab:clear' })
+      this.post({ id, type: 'ptab:clearIDB', payload: { length } } as WorkerMsg)
     })
   }
 

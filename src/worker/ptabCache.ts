@@ -8,9 +8,15 @@ export interface PtabMeta { L: number; N: number; M: number; hash32: number; see
 export interface PtabTable { meta: PtabMeta; planes: Map<number, Uint16Array> }
 
 export interface PatternProvider {
-  ensureForLength(length: number, words: string[], onProgress?: (stage: string, percent: number) => void): Promise<PtabMeta | null>
+  ensureForLength(
+    length: number,
+    words: string[],
+    onProgress?: (stage: string, percent: number) => void,
+  ): Promise<PtabMeta | null>
   getPatterns(length: number, words: string[], guess: string): Promise<Uint16Array>
   clearMemory(): void
+  statsForLength(length: number): { memorySeedPlanes: number; memoryFallback: number }
+  clearFallbackForLength(length: number): void
 }
 
 interface LengthState {
@@ -223,5 +229,22 @@ export function createPatternProvider(opts?: ProviderOpts): PatternProvider {
     // Do not drop precomputed assets, only volatile cache
   }
 
-  return { ensureForLength, getPatterns, clearMemory }
+  function statsForLength(length: number): { memorySeedPlanes: number; memoryFallback: number } {
+    const st = lengthStates.get(length)
+    const memorySeedPlanes = st?.table?.planes.size || 0
+    const prefix = `${length}:`
+    let memoryFallback = 0
+    for (const k of lru.keys()) if (k.startsWith(prefix)) memoryFallback++
+    return { memorySeedPlanes, memoryFallback }
+  }
+
+  function clearFallbackForLength(length: number) {
+    const prefix = `${length}:`
+    for (const k of lru.keys()) if (k.startsWith(prefix)) lru.delete(k)
+    const st = lengthStates.get(length)
+    // Also clear accessed seed planes map to allow re-slicing lazily (doesn't refetch asset)
+    if (st?.table) st.table.planes.clear()
+  }
+
+  return { ensureForLength, getPatterns, clearMemory, statsForLength, clearFallbackForLength }
 }

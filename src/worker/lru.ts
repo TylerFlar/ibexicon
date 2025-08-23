@@ -50,6 +50,22 @@ export class ByteLRU {
     this.total = 0
   }
 
+  keys(): string[] {
+    return [...this.map.keys()]
+  }
+
+  delete(key: string) {
+    const e = this.map.get(key)
+    if (!e) return
+    // unlink
+    if (e.older) e.older.newer = e.newer
+    if (e.newer) e.newer.older = e.older
+    if (this.head === e) this.head = e.newer
+    if (this.tail === e) this.tail = e.older
+    this.total -= e.size
+    this.map.delete(key)
+  }
+
   private insertFront(e: NodeEntry) {
     e.newer = this.head
     e.older = undefined
