@@ -1,6 +1,8 @@
 #!/usr/bin/env node
+/* eslint-env node */
+/* eslint-disable no-console */
 /**
- * Ibexicon Simulator CLI (Milestone 7)
+ * Ibexicon Simulator CLI
  * Orchestrates evaluation across (length × policy) shards using worker threads.
  */
 

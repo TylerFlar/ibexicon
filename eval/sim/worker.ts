@@ -1,3 +1,4 @@
+/* eslint-env node */
 import { parentPort, workerData } from 'worker_threads'
 import fs from 'node:fs'
 import path from 'node:path'

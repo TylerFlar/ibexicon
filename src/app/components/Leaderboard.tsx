@@ -104,7 +104,9 @@ export default function Leaderboard() {
             const csvText = await csvRes.text()
             setData((prev) => (prev ? { ...prev, csvText } : prev))
           }
-        } catch {}
+        } catch (e) {
+          // ignore optional CSV fetch failure
+        }
       } catch (e: any) {
         if (cancelled) return
         setLoadError(e.message || String(e))

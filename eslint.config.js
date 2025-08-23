@@ -23,6 +23,7 @@ export default tseslint.config([
       },
       globals: {
         ...globals.browser,
+        ...globals.node,
         // Allow import.meta typical for Vite
         import: 'readonly',
       },

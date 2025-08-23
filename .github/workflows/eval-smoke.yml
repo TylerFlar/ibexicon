@@ -32,7 +32,7 @@ jobs:
       - name: List results
         run: ls -l eval/results || true
       - name: Upload latest summary
-        if: exists('eval/results/latest.json')
+        if: ${{ hashFiles('eval/results/latest.json') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: eval-latest-json
