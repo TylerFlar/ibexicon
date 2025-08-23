@@ -87,8 +87,7 @@ async function runJobs(jobs: Job[], concurrency: number): Promise<ShardResult[]>
         // Determine how to preload tsx depending on Node version:
         // - Node >= 20 supports --import=specifier (preferred; keeps ESM semantics)
         // - Node 16/18 (LTS still present on some CI runners) lack stable --import, so we fall back to --loader.
-        const nodeMajor = Number(process.versions.node.split('.')[0]) || 0
-        const tsxPreload = nodeMajor >= 20 ? ['--import=tsx'] : ['--loader', 'tsx']
+  const tsxPreload = ['--loader', 'tsx']
   const worker = new Worker(new URL('./worker.ts', import.meta.url), {
           // Preload tsx so subsequent TypeScript imports (worker.ts and its deps) work.
           execArgv: tsxPreload,
