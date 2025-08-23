@@ -8,7 +8,7 @@ export interface PtabMeta { L: number; N: number; M: number; hash32: number; see
 export interface PtabTable { meta: PtabMeta; planes: Map<number, Uint16Array> }
 
 export interface PatternProvider {
-  ensureForLength(length: number, words: string[]): Promise<void>
+  ensureForLength(length: number, words: string[], onProgress?: (stage: string, percent: number) => void): Promise<PtabMeta | null>
   getPatterns(length: number, words: string[], guess: string): Promise<Uint16Array>
   clearMemory(): void
 }
@@ -106,30 +106,49 @@ export function createPatternProvider(opts?: ProviderOpts): PatternProvider {
     return table
   }
 
-  async function ensureForLength(length: number, words: string[]): Promise<void> {
+  async function ensureForLength(
+    length: number,
+    words: string[],
+    onProgress?: (stage: string, percent: number) => void,
+  ): Promise<PtabMeta | null> {
     const st = stateFor(length)
-    if (st.assetLoaded || st.assetIgnored) return
+    if (st.assetLoaded && st.table) return st.table.meta
+    if (st.assetIgnored) return null
     // Compute hash of current word ordering
     const joined = words.join('\n')
     const hash32 = fnv1a32(joined)
     st.wordsHash = hash32
     // Try fetch asset
+    onProgress?.('download', 0)
     const buf = await fetchAsset(length)
+    onProgress?.('download', 1)
     if (!buf) {
       st.assetIgnored = true
-      return
+      onProgress?.('verify', 1)
+      onProgress?.('parse', 1)
+      onProgress?.('ready', 1)
+      return null
     }
+    onProgress?.('verify', 0.2)
     const table = parseBinary(buf, words, length, hash32)
     if (!table) {
       st.assetIgnored = true
-      return
+      onProgress?.('verify', 1)
+      onProgress?.('parse', 1)
+      onProgress?.('ready', 1)
+      return null
     }
+    onProgress?.('verify', 1)
+    onProgress?.('parse', 0.5)
     st.table = table
     st.assetLoaded = true
     // Build word index map
     const wmap = new Map<string, number>()
     for (let i = 0; i < words.length; i++) wmap.set(words[i]!, i)
     st.wordIndex = wmap
+    onProgress?.('parse', 1)
+    onProgress?.('ready', 1)
+    return table.meta
   }
 
   function findSeedRow(meta: PtabMeta, seedIndex: number): number | null {

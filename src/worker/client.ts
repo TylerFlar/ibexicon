@@ -49,7 +49,8 @@ interface PendingEntry<T = unknown> {
   resolve: (value: T) => void
   reject: (error: unknown) => void
   onProgress?: ProgressHandler
-  kind: 'warmup' | 'score' | 'dispose' | 'analyze:heatmap' | 'analyze:guess'
+  onPtabProgress?: (stage: string, percent: number) => void
+  kind: 'warmup' | 'score' | 'dispose' | 'analyze:heatmap' | 'analyze:guess' | 'ptab:ensure'
 }
 
 export class SolverWorkerClient {
@@ -82,6 +83,15 @@ export class SolverWorkerClient {
         this.pending.delete(msg.id)
         entry.resolve(undefined)
         return
+      case 'ptab:progress': {
+        entry.onPtabProgress?.(msg.stage, msg.percent)
+        return
+      }
+      case 'ptab:ready': {
+        this.pending.delete(msg.id)
+        entry.resolve(msg.meta)
+        return
+      }
       case 'result': {
         this.pending.delete(msg.id)
         if (this.currentScoreId === msg.id) this.currentScoreId = null
@@ -130,6 +140,23 @@ export class SolverWorkerClient {
         kind: 'warmup',
       })
       this.post({ id, type: 'warmup' })
+    })
+  }
+
+  ensurePtab(
+    length: number,
+    words: string[],
+    onProgress?: (stage: string, percent: number) => void,
+  ): Promise<{ L: number; N: number; M: number; hash32: number }> {
+    const id = this.nextId()
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, {
+        resolve: resolve as (v: { L: number; N: number; M: number; hash32: number }) => void,
+        reject,
+        kind: 'ptab:ensure',
+        onPtabProgress: onProgress,
+      })
+      this.post({ id, type: 'ptab:ensure', payload: { length, words } } as WorkerMsg)
     })
   }
 

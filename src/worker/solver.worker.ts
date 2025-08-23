@@ -6,6 +6,7 @@ import { createPatternProvider } from './ptabCache'
 // Message definitions (incoming)
 export type Msg =
   | { id: number; type: 'warmup'; payload?: { length?: number; words?: string[] } }
+  | { id: number; type: 'ptab:ensure'; payload: { length: number; words: string[] } }
   | {
       id: number
       type: 'score'
@@ -47,6 +48,8 @@ export type Msg =
 // Outgoing messages (replies / events)
 export type OutMsg =
   | { id: number; type: 'warmup:ok' }
+  | { id: number; type: 'ptab:progress'; stage: string; percent: number }
+  | { id: number; type: 'ptab:ready'; meta: { L: number; N: number; M: number; hash32: number } }
   | { id: number; type: 'progress'; p: number }
   | { id: number; type: 'result'; suggestions: unknown }
   | { id: number; type: 'analyze:heatmap:result'; result: unknown }
@@ -112,6 +115,26 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
           err instanceof Error
             ? { message: err.message, stack: err.stack }
             : { message: String(err) }
+        const out: OutMsg = { id: msg.id, type: 'error', error }
+        ;(self as unknown as Worker).postMessage(out)
+      }
+      return
+    }
+    case 'ptab:ensure': {
+      const { length, words } = msg.payload
+      try {
+        const meta = await patternProvider.ensureForLength(length, words, (stage, percent) => {
+          const out: OutMsg = { id: msg.id, type: 'ptab:progress', stage, percent }
+          ;(self as unknown as Worker).postMessage(out)
+        })
+        const out: OutMsg = {
+          id: msg.id,
+            type: 'ptab:ready',
+            meta: meta ? meta : { L: length, N: words.length, M: 0, hash32: 0 },
+        }
+        ;(self as unknown as Worker).postMessage(out)
+      } catch (err) {
+        const error = err instanceof Error ? { message: err.message, stack: err.stack } : { message: String(err) }
         const out: OutMsg = { id: msg.id, type: 'error', error }
         ;(self as unknown as Worker).postMessage(out)
       }
