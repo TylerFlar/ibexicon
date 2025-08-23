@@ -5,6 +5,7 @@ export interface Toast {
   message: string
   tone?: 'info' | 'warn' | 'error'
   ttl?: number // ms
+  actions?: Array<{ label: string; event: string; tone?: 'primary' | 'danger' }>
 }
 
 interface ToastContextValue {
@@ -39,7 +40,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
 
   const push = useCallback<ToastContextValue['push']>((t) => {
     const id = Math.random().toString(36).slice(2)
-    const toast: Toast = { ttl: 3500, tone: 'info', ...t, id }
+    const toast: Toast = { ttl: 4500, tone: 'info', ...t, id }
     setToasts((prev) => [...prev, toast])
     if (toast.ttl) {
       const handle = window.setTimeout(() => remove(id), toast.ttl)
@@ -70,6 +71,30 @@ export function ToastProvider({ children }: ToastProviderProps) {
             role="status"
           >
             <span className="flex-1">{t.message}</span>
+            {t.actions && t.actions.length > 0 && (
+              <div className="flex gap-1">
+                {t.actions.map((a) => (
+                  <button
+                    key={a.label}
+                    onClick={() => {
+                      window.dispatchEvent(
+                        new CustomEvent('ibx:confirm-action', { detail: a.event }),
+                      )
+                      remove(t.id)
+                    }}
+                    className={`text-xs px-2 py-0.5 rounded border border-neutral-300 dark:border-neutral-600 ${
+                      a.tone === 'danger'
+                        ? 'bg-red-600 text-white hover:bg-red-700'
+                        : a.tone === 'primary'
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600'
+                    }`}
+                  >
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            )}
             <button
               onClick={() => remove(t.id)}
               className="text-xs px-1 py-0.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700"

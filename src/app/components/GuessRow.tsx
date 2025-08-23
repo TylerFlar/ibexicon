@@ -7,6 +7,7 @@ export interface GuessRowProps {
   value: string
   onChange(value: string): void
   onCommit(guess: string, trits: Trit[]): void
+  onInvalid?(reason: 'length' | 'pattern' | 'chars'): void
   disabled?: boolean
   colorblind?: boolean
   /** Optional external trigger to reset row (e.g., after commit) */
@@ -18,6 +19,7 @@ export function GuessRow({
   value,
   onChange,
   onCommit,
+  onInvalid,
   disabled,
   colorblind,
   resetSignal,
@@ -39,7 +41,13 @@ export function GuessRow({
   const commitReady = value.length === length && trits.length === length
 
   const handleCommit = () => {
-    if (!commitReady || disabled) return
+    if (!commitReady || disabled) {
+      if (onInvalid) {
+        if (value.length !== length) onInvalid('length')
+        else if (trits.length !== length) onInvalid('pattern')
+      }
+      return
+    }
     onCommit(value, trits)
   }
 

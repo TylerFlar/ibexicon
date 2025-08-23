@@ -52,6 +52,16 @@ body {
 
 .tile:focus-visible { @apply outline outline-2 outline-offset-2 outline-blue-500; }
 
+/* Shake animation for invalid input */
+@keyframes ibx-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+.shake-invalid { animation: ibx-shake 400ms ease; }
+
 /* Utility for a responsive two-column page section inside main */
 .pane-grid { @apply grid gap-4 lg:gap-6 grid-cols-1 xl:grid-cols-2; }
 

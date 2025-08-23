@@ -53,6 +53,10 @@ function AssistantAppInner() {
 
   const candidateCount = candidates?.getAliveWords().length ?? 0
 
+  const [pendingConfirm, setPendingConfirm] = useState<null | { kind: 'offlist' | 'eliminate'; guess: string; trits: Trit[] }>(null)
+
+  const isInWordlist = (g: string) => !!words && words.includes(g)
+
   const commitGuess = (guess: string, trits: Trit[]) => {
     if (!words) return
     if (guess.length !== settings.length) {
@@ -63,12 +67,37 @@ function AssistantAppInner() {
       push({ message: 'Pattern length mismatch', tone: 'warn' })
       return
     }
-    // Warn if inconsistent
+    if (!isInWordlist(guess)) {
+      setPendingConfirm({ kind: 'offlist', guess, trits })
+      push({
+        message: `That word isn't in the en-${settings.length} list. Continue?`,
+        tone: 'warn',
+      })
+      return
+    }
     if (wouldEliminateAll(words, history, guess, trits)) {
-      push({ message: 'Pattern would eliminate all candidates', tone: 'warn' })
+      setPendingConfirm({ kind: 'eliminate', guess, trits })
+      push({
+        message: 'This pattern would eliminate all candidates. Apply anyway?',
+        tone: 'warn',
+      })
+      return
     }
     addGuess(guess, trits)
   }
+
+  // Listen for global confirm events from toast action buttons
+  useEffect(() => {
+    const handler = (e: any) => {
+      if (!pendingConfirm) return
+      if (e.detail === 'confirm') {
+        addGuess(pendingConfirm.guess, pendingConfirm.trits)
+      }
+      setPendingConfirm(null)
+    }
+    window.addEventListener('ibx:confirm-action', handler)
+    return () => window.removeEventListener('ibx:confirm-action', handler)
+  }, [pendingConfirm, addGuess])
 
   // Keyboard integration
   const handleKeyboardKey = (k: string) => {
@@ -136,6 +165,11 @@ function AssistantAppInner() {
               value={guessInput}
               onChange={session.setGuessInput}
               onCommit={commitGuess}
+              onInvalid={(r) => {
+                if (r === 'pattern') {
+                  push({ message: 'Pattern length mismatch', tone: 'warn' })
+                }
+              }}
               colorblind={settings.colorblind}
               disabled={!words}
               resetSignal={history.length}
