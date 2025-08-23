@@ -1,6 +1,7 @@
 import { WordlistDebug } from './app/components/WordlistDebug'
 import { SolverDebug } from './app/components/SolverDebug'
 import { SuggestDebug } from './app/components/SuggestDebug'
+import { WorkerSuggestPanel } from './app/components/WorkerSuggestPanel'
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
       <WordlistDebug />
       <SolverDebug />
       <SuggestDebug />
+      <WorkerSuggestPanel />
     </main>
   )
 }
