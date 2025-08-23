@@ -7,6 +7,8 @@ import { loadWordlistSet } from '@/solver/data/loader'
 import { buildCandidates, wouldEliminateAll } from '@/app/logic/constraints'
 import { SuggestPanel } from '@/app/components/SuggestPanel'
 import { lazy, Suspense } from 'react'
+import { PrecomputeBanner } from '@/app/components/PrecomputeBanner'
+import { SolverWorkerClient } from '@/worker/client'
 const AnalysisPanel = lazy(() => import('@/app/components/AnalysisPanel'))
 const CandidateTable = lazy(() => import('@/app/components/CandidateTable'))
 const LazyLeaderboard = lazy(() => import('@/app/components/Leaderboard'))
@@ -94,6 +96,10 @@ function AssistantAppInner() {
     () => (words ? buildCandidates(words, history) : null),
     [words, history],
   )
+  // Singleton worker client for pattern table ensure UI (avoid recreating on re-renders)
+  const workerClientRef = useRef<SolverWorkerClient | null>(null)
+  if (!workerClientRef.current) workerClientRef.current = new SolverWorkerClient()
+  const workerClient = workerClientRef.current
   const candidateCount = candidates?.getAliveWords().length ?? 0
 
   const [pendingConfirm, setPendingConfirm] = useState<null | {
@@ -301,6 +307,7 @@ function AssistantAppInner() {
           <div className="flex flex-col items-center gap-6 w-full">
             <Keyboard history={history} onKey={handleKeyboardKey} disabled={!words} />
             <div className="w-full max-w-5xl">
+              <PrecomputeBanner client={workerClient} length={settings.length} words={words} />
               <div className="flex justify-center flex-wrap gap-2 mb-4 text-xs">
                 {[
                   { key: 'suggest', label: 'Suggest' },
