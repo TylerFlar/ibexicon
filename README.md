@@ -175,6 +175,65 @@ Integration tests exercise scoring & cancellation. In the jsdom test environment
 
 ---
 
+## Precomputed Pattern Tables (Milestone 8)
+
+Hot seed guess × secret feedback patterns can be precomputed for shorter lengths (defaults: L ≤ 10, N ≤ 20k, top M = 1500 seeds) to accelerate early scoring. A binary asset per length is written to:
+
+```
+public/wordlists/en/ibxptab-<L>.bin
+```
+
+Binary format (little-endian):
+
+```
+u32 magic   = 0x49585054  // 'IXPT'
+u16 version = 1
+u8  L
+u8  reserved = 0
+u32 N            // number of secrets
+u32 hash32       // FNV-1a of canonical en-<L>.txt content (joined by '\n')
+u32 M            // number of seeds stored
+u32 seedIndex[M] // indices into the word list (0..N-1)
+u16 patterns[M][N] // row-major; for each seed then each secret the feedback pattern code
+```
+
+Pattern codes are numeric base‑3 packed values (trits: gray=0, yellow=1, green=2) produced by the existing `feedbackPattern` helper; for L ≤ 10 each fits in 16 bits (max 59048).
+
+Seed selection heuristic (documented for reproducibility):
+
+1. Rank all words by prior probability descending (tie → lexicographic). Rank r ∈ [0, N-1].
+2. priorRankScore = (N − 1 − r)/(N − 1) (best prior → 1).
+3. uniqueLettersScore = (# distinct letters)/L.
+4. seedScore = 0.7 * priorRankScore + 0.3 * uniqueLettersScore.
+5. Keep the top M by (seedScore desc, word asc) — default M = 1500.
+
+### Build the tables
+
+```bash
+npm run build:ptab
+```
+
+Options (pass after `--`):
+
+```
+--lengths 4,5,6      # restrict to specific lengths
+--maxWords 15000     # skip if N > maxWords (default 20000)
+--maxLen 9           # override length cutoff (default 10)
+--seeds 1200         # change number of stored seed guesses
+```
+
+If `public/wordlists/en/manifest.json` exists its `lengths` array drives discovery; otherwise the script scans for `en-*.txt` files. Existing `.bin` files are overwritten.
+
+### Skipping / constraints
+
+Lengths with N > maxWords or L > maxLen (or > 10 which breaks the 16‑bit pattern bound) are skipped.
+
+### Consumption (planned)
+
+The solver worker will (future work) attempt to fetch `ibxptab-<L>.bin`, validate the hash against the current word list ordering, then reuse precomputed pattern rows with fallback to on‑demand computation + IndexedDB + in‑memory LRU cache.
+
+---
+
 ## React + TypeScript + Vite Template Notes
 
 ## Expanding the ESLint configuration

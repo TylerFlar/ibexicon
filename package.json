@@ -16,7 +16,8 @@
     "clean:data": "rimraf public/wordlists/en/* || true",
     "validate:data": "node scripts/data/validate.mjs",
     "eval:run": "tsx eval/sim/cli.ts",
-    "eval:ci": "tsx eval/sim/cli.ts --lengths 5 --trials 50 --attempts 6 --policies composite --concurrency 2"
+    "eval:ci": "tsx eval/sim/cli.ts --lengths 5 --trials 50 --attempts 6 --policies composite --concurrency 2",
+    "build:ptab": "tsx eval/ptab/build.ts"
   },
   "dependencies": {
     "react": "^19.1.1",
