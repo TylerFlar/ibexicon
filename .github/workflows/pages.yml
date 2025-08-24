@@ -54,6 +54,7 @@ jobs:
       - name: Build WASM (if present)
         run: |
           npm run wasm:build --if-present
+          npm run postwasm:build --if-present
 
       - name: Run tests
         run: npm test --silent

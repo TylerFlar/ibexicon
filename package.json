@@ -18,7 +18,8 @@
     "build:ptab": "tsx eval/ptab/build.ts",
     "add:dataset": "tsx scripts/add-dataset.ts",
     "wasm:dev": "wasm-pack build wasm/ibxwasm --target bundler --out-dir ../../src/wasm/pkg",
-    "wasm:build": "wasm-pack build wasm/ibxwasm --target bundler --release --out-dir ../../src/wasm/pkg"
+    "wasm:build": "wasm-pack build wasm/ibxwasm --target bundler --release --out-dir ../../src/wasm/pkg",
+    "postwasm:build": "node scripts/patch-wasm-import.mjs"
   },
   "dependencies": {
     "react": "^19.1.1",
