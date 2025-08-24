@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { track } from '@/telemetry'
 import { SolverWorkerClient } from '@/worker/client'
 
 interface WasmBenchProps {
@@ -20,6 +21,7 @@ export function WasmBench({ client, defaultLength = 5 }: WasmBenchProps) {
     try {
       const r = await client.benchPatternRow(length, N)
       setResult(r)
+      track({ name: 'bench_run', props: { length, N, wasm: r.wasmMs != null } })
     } catch (e: any) {
       setError(e?.message || String(e))
     } finally {

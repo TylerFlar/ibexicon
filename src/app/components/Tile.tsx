@@ -12,6 +12,11 @@ export interface TileProps {
   onSelect?(index: number): void
   selected?: boolean
   colorblind?: boolean
+  // Direct typing mode (letters mode) callbacks
+  onLetter?(ch: string, index: number): void
+  onBackspace?(index: number): void
+  onNavigate?(delta: number, index: number): void
+  onEnter?(): void
 }
 
 const valueLabels: Record<Trit, string> = {
@@ -37,6 +42,10 @@ export function Tile({
   onSelect,
   selected,
   colorblind,
+  onLetter,
+  onBackspace,
+  onNavigate,
+  onEnter,
 }: TileProps) {
   const cycle = useCallback(
     (e?: React.MouseEvent | React.KeyboardEvent) => {
@@ -49,6 +58,37 @@ export function Tile({
 
   const handleKey = (e: React.KeyboardEvent) => {
     if (disabled) return
+    // Letters mode (disableCycle true) repurposes keys for direct editing
+    if (disableCycle) {
+      if (/^[a-zA-Z]$/.test(e.key)) {
+        onLetter?.(e.key.toLowerCase(), index)
+        e.preventDefault()
+        return
+      }
+      if (e.key === 'Backspace') {
+        onBackspace?.(index)
+        e.preventDefault()
+        return
+      }
+      if (e.key === 'ArrowLeft') {
+        onNavigate?.(-1, index)
+        e.preventDefault()
+        return
+      }
+      if (e.key === 'ArrowRight') {
+        onNavigate?.(1, index)
+        e.preventDefault()
+        return
+      }
+      if (e.key === 'Enter') {
+        onEnter?.()
+        e.preventDefault()
+        return
+      }
+      // ignore other keys in letters mode
+      return
+    }
+    // Colors mode (cycling / explicit trit setting)
     if (e.key === ' ' || e.key === 'Enter') {
       cycle(e)
     } else if (onSet) {

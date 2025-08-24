@@ -12,6 +12,7 @@ import {
   resetState as resetBanditState,
 } from '@/policy/bandit'
 import { suggestByPolicy, type PolicyId } from '@/policy/policies'
+import { track } from '@/telemetry'
 // Simplified; WhatIf / preview removed
 
 export interface SuggestPanelProps {
@@ -118,6 +119,10 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
         alpha: s.alpha,
       }))
       setResults(mapped)
+      track({
+        name: 'suggest_requested',
+        props: { length: settings.length, S: candidateWords.length, policy: activePolicy },
+      })
     } catch (e: any) {
       push({ message: `Suggest error: ${e.message || e}`, tone: 'error' })
     } finally {
@@ -179,7 +184,11 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
             <select
               className="px-1 py-0.5 rounded border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-[0.65rem]"
               value={settings.policyMode}
-              onChange={(e) => session.setPolicy(e.target.value as any)}
+              onChange={(e) => {
+                const val = e.target.value as any
+                session.setPolicy(val)
+                track({ name: 'policy_changed', props: { policy: val } })
+              }}
             >
               <option value="auto">Auto (Bandit)</option>
               <option value="composite">Composite</option>

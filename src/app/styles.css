@@ -93,6 +93,14 @@ body.app-centered {
   outline: 3px solid #f59e0b;
   outline-offset: 2px;
 }
+/* Selected tile (direct typing cursor) */
+.tile[data-selected='true'] {
+  box-shadow: 0 0 0 3px #2563eb55;
+  position: relative;
+}
+.dark .tile[data-selected='true'] {
+  box-shadow: 0 0 0 3px #3b82f655;
+}
 /* Dark mode contrast adjustments */
 .dark .tile[data-state='absent'] {
   --tile-bg: #2f2f31;

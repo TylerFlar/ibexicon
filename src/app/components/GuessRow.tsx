@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { Tile } from './Tile'
 import type { Trit } from '@/app/state/session'
 
@@ -26,12 +26,14 @@ export function GuessRow({
 }: GuessRowProps) {
   const [trits, setTrits] = useState<Trit[]>(() => Array.from({ length }, () => 0 as Trit))
   const [mode, setMode] = useState<'letters' | 'colors'>('letters')
-  // pattern input removed; user cycles tiles directly
+  // Direct typing happens on tiles in letters mode; colors mode lets user cycle trits.
+  const [cursor, setCursor] = useState(0)
 
   // Reset trits when length changes or external reset
   useEffect(() => {
     setTrits(Array.from({ length }, () => 0 as Trit))
     setMode('letters')
+    setCursor(0)
   }, [length, resetSignal])
 
   // Keep pattern input in sync when trits change (user clicked tiles)
@@ -39,7 +41,7 @@ export function GuessRow({
 
   const commitReady = value.length === length && trits.length === length
 
-  const handleCommit = () => {
+  const handleCommit = useCallback(() => {
     if (!commitReady || disabled) {
       if (onInvalid) {
         if (value.length !== length) onInvalid('length')
@@ -48,22 +50,41 @@ export function GuessRow({
       return
     }
     onCommit(value, trits)
-  }
+  }, [commitReady, disabled, onInvalid, value, length, trits, onCommit])
 
-  const keyHandler = (e: React.KeyboardEvent) => {
+  const applyLetter = useCallback(
+    (ch: string) => {
+      if (disabled) return
+      if (mode !== 'letters') return
+      if (value.length >= length) return // row full
+      const next = (value + ch).slice(0, length)
+      onChange(next)
+      // Cursor moves to next empty slot, or stays at last tile if full
+      const nextCursor = next.length < length ? next.length : length - 1
+      setCursor(nextCursor)
+    },
+    [disabled, mode, value, onChange, length],
+  )
+
+  const applyBackspace = useCallback(() => {
     if (disabled) return
-    const k = e.key
-    if (mode === 'letters' && /^[a-zA-Z]$/.test(k)) {
-      e.preventDefault()
-      if (value.length < length) onChange((value + k.toLowerCase()).slice(0, length))
-    } else if (mode === 'letters' && k === 'Backspace') {
-      e.preventDefault()
-      onChange(value.slice(0, -1))
-    } else if (k === 'Enter') {
-      e.preventDefault()
-      handleCommit()
-    }
-  }
+    if (mode !== 'letters') return
+    if (!value.length) return
+    const next = value.slice(0, -1)
+    onChange(next)
+    const nextCursor = next.length ? Math.min(next.length, length - 1) : 0
+    setCursor(nextCursor)
+  }, [disabled, mode, value, onChange, length])
+
+  const navigate = useCallback(
+    (delta: number, idx: number) => {
+      const target = Math.min(length - 1, Math.max(0, idx + delta))
+      setCursor(target)
+    },
+    [length],
+  )
+
+  // handleEnter now just reuses handleCommit directly
 
   const setTritAt = (i: number, v: Trit) => {
     setTrits((prev) => prev.map((t, idx) => (idx === i ? v : t)) as Trit[])
@@ -84,23 +105,25 @@ export function GuessRow({
           value={trits[i]!}
           disabled={disabled}
           onCycle={() => cycleTritAt(i)}
-          onSet={(v) => setTritAt(i, v)}
+            onSet={(v) => setTritAt(i, v)}
           disableCycle={mode === 'letters'}
           colorblind={colorblind}
+          selected={i === cursor}
+          onLetter={(ch) => applyLetter(ch)}
+          onBackspace={() => applyBackspace()}
+          onNavigate={(d) => navigate(d, i)}
+          onEnter={handleCommit}
+          onSelect={() => setCursor(i)}
         />
       )),
-    [length, value, trits, disabled, colorblind, mode],
+  [length, value, trits, disabled, colorblind, mode, cursor, applyLetter, applyBackspace, navigate, handleCommit],
   )
 
-  const firstButtonRef = useRef<HTMLButtonElement | null>(null)
+  // Manage focusing the active tile
+  const tileRefs = useRef<(HTMLButtonElement | null)[]>([])
   useEffect(() => {
-    firstButtonRef.current?.focus()
-  }, [])
-
-  const hiddenInputRef = useRef<HTMLInputElement | null>(null)
-  useEffect(() => {
-    if (mode === 'letters') hiddenInputRef.current?.focus()
-  }, [mode])
+    tileRefs.current[cursor]?.focus()
+  }, [cursor, tiles])
 
   return (
     <div
@@ -108,23 +131,6 @@ export function GuessRow({
       role="group"
       aria-label="Active guess row (type letters, then switch to Colors mode to set feedback)"
     >
-      <input
-        ref={hiddenInputRef}
-        type="text"
-        aria-label="Guess letters"
-        aria-describedby={mode === 'letters' ? undefined : 'color-mode-hint'}
-        autoComplete="off"
-        spellCheck={false}
-        inputMode="text"
-        value={value}
-        onChange={(e) => {
-          if (disabled) return
-          const raw = e.target.value.toLowerCase().replace(/[^a-z]/g, '')
-          onChange(raw.slice(0, length))
-        }}
-        onKeyDown={keyHandler}
-        className="sr-only focus:not-sr-only focus:w-0 focus:h-0"
-      />
       <div className="flex flex-col items-center gap-1 mb-1 w-full">
         <div
           role="group"
@@ -151,7 +157,11 @@ export function GuessRow({
         </div>
       </div>
       <div className="flex gap-1 mb-1" aria-label="Guess tiles">
-        {tiles.map((t, i) => (i === 0 ? React.cloneElement(t as any, { ref: firstButtonRef }) : t))}
+        {tiles.map((t, i) =>
+          React.cloneElement(t as any, {
+            ref: (el: HTMLButtonElement | null) => (tileRefs.current[i] = el),
+          }),
+        )}
       </div>
       <button
         type="button"
@@ -162,7 +172,7 @@ export function GuessRow({
         Add Guess
       </button>
       <p className="text-[0.6rem] text-neutral-500 dark:text-neutral-400 max-w-[14rem] text-center leading-snug">
-        Letters: enter word. Colors: tap tiles to set feedback.
+        Type directly into the tiles. Switch to Colors to set feedback.
       </p>
     </div>
   )

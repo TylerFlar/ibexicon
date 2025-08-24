@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSession } from '@/app/hooks/useSession'
 import { GuessRow } from '@/app/components/GuessRow'
-import { Keyboard } from '@/app/components/Keyboard'
 import { ToastProvider, useToasts } from '@/app/components/Toaster'
 import { ErrorBoundary } from '@/app/ErrorBoundary'
 import { loadWordlistSetById, listWordlistDescriptors } from '@/solver/data/loader'
@@ -13,6 +12,8 @@ import { DebugPage } from '@/app/components/DebugPage'
 import { SolverWorkerClient } from '@/worker/client'
 import { fromSeed, toSeedV1 } from '@/app/seed'
 import { ShareBar } from '@/app/components/ShareBar'
+import { loadTelemetryEnabled, setTelemetryEnabled, track } from '@/telemetry'
+import Privacy from '@/app/routes/Privacy'
 const AnalysisPanel = lazy(() => import('@/app/components/AnalysisPanel'))
 const CandidateTable = lazy(() => import('@/app/components/CandidateTable'))
 const LazyLeaderboard = lazy(() => import('@/app/components/Leaderboard'))
@@ -21,9 +22,11 @@ import type { Trit } from '@/app/state/session'
 function AssistantAppInner() {
   // Hooks first (no conditional use) then derive secret flag for conditional render.
   const session = useSession()
-  const { settings, history, guessInput, setGuessInput, addGuess, setDataset, setLength } = session
+  const { settings, history, guessInput, addGuess, setDataset, setLength } = session
   const { push } = useToasts()
   const [started, setStarted] = useState(false)
+  const [route, setRoute] = useState<string>(() => (typeof window !== 'undefined' ? window.location.hash : ''))
+  useEffect(() => { const handler = () => setRoute(window.location.hash); window.addEventListener('hashchange', handler); return () => window.removeEventListener('hashchange', handler) }, [])
   // Hydrate from hash seed once on mount
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -244,18 +247,7 @@ function AssistantAppInner() {
     return () => window.removeEventListener('ibx:confirm-action', handler)
   }, [pendingConfirm, addGuess])
 
-  const handleKeyboardKey = (k: string) => {
-    if (k === 'Enter') return
-    if (k === 'Backspace') {
-      setGuessInput(guessInput.slice(0, -1))
-      return
-    }
-    if (/^[a-zA-Z]$/.test(k)) {
-      if (guessInput.length < settings.length) {
-        setGuessInput((guessInput + k.toLowerCase()).slice(0, settings.length))
-      }
-    }
-  }
+  // On-screen keyboard removed; typing happens directly in tiles.
 
   // Shake animation for invalid tries
   const activeRowWrapperRef = useRef<HTMLDivElement | null>(null)
@@ -281,6 +273,7 @@ function AssistantAppInner() {
     </div>
   ))
 
+  if (route === '#/privacy') return <Privacy />
   if (secretDebug) return <DebugPage />
   return (
     <div className="flex flex-col min-h-dvh">
@@ -317,15 +310,12 @@ function AssistantAppInner() {
                   onChange={(e) => session.setAttemptsMax(Number(e.target.value))}
                 />
               </label>
-              <label
-                className="flex flex-col gap-1 text-xs font-medium w-full max-w-xs"
-                title="Initial policy / strategy for suggestions"
-              >
+              <label className="flex flex-col gap-1 text-xs font-medium w-full max-w-xs" title="Initial policy / strategy for suggestions">
                 <span>Policy</span>
                 <select
                   className="px-3 py-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white/90 dark:bg-neutral-800/80 text-sm"
                   value={settings.policyMode}
-                  onChange={(e) => session.setPolicy(e.target.value as any)}
+                  onChange={(e) => { const val = e.target.value as any; session.setPolicy(val); track({ name: 'policy_changed', props: { policy: val } }) }}
                 >
                   <option value="auto">Auto (Bandit)</option>
                   <option value="composite">Composite</option>
@@ -334,35 +324,20 @@ function AssistantAppInner() {
                   <option value="unique-letters">Unique-letters</option>
                 </select>
               </label>
+              <label className="flex items-center gap-2 text-xs" title="Share anonymous usage to improve Ibexicon">
+                <input type="checkbox" checked={loadTelemetryEnabled()} onChange={(e) => { setTelemetryEnabled(e.target.checked) }} />
+                <span>Share anonymous usage (opt-in)</span>
+                <a href="#/privacy" className="underline text-neutral-500">Privacy</a>
+              </label>
             </div>
-            <label className="flex items-center gap-2 text-xs" title="Colorblind mode">
-              <input
-                type="checkbox"
-                checked={settings.colorblind}
-                onChange={session.toggleColorblind}
-              />
-              <span>Colorblind mode</span>
-            </label>
-            <label
-              className="flex flex-col gap-1 text-xs font-medium w-full max-w-xs"
-              title="Theme preference"
-            >
-              <span>Theme</span>
-              <select
-                className="px-3 py-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white/90 dark:bg-neutral-800/80 text-sm"
-                value={settings.theme}
-                onChange={(e) => session.setTheme(e.target.value as any)}
-              >
-                <option value="system">System</option>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-              </select>
-            </label>
             <div className="flex justify-end">
               <button
                 type="button"
                 className="px-6 py-2 rounded-md bg-blue-600 text-white font-semibold text-sm hover:bg-blue-500"
-                onClick={() => setStarted(true)}
+                onClick={() => {
+                  setStarted(true)
+                  track({ name: 'settings_start', props: { length: settings.length, attemptsMax: settings.attemptsMax } })
+                }}
               >
                 Start
               </button>
@@ -426,7 +401,7 @@ function AssistantAppInner() {
         </section>
         {started && (
           <div className="flex flex-col items-center gap-6 w-full">
-            <Keyboard history={history} onKey={handleKeyboardKey} disabled={!words} />
+            {/* On-screen keyboard removed; direct tile typing */}
             <div className="w-full max-w-5xl">
               <PrecomputeBanner
                 client={workerClient}
