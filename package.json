@@ -23,6 +23,7 @@
     "wasm:dev": "wasm-pack build wasm/ibxwasm --target bundler --out-dir ../../src/wasm/pkg",
     "wasm:build": "wasm-pack build wasm/ibxwasm --target bundler --release --out-dir ../../src/wasm/pkg",
     "postwasm:build": "node scripts/patch-wasm-import.mjs",
+  "wasm:ci": "npm run wasm:dev && npm run postwasm:build",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
     "e2e:install": "playwright install --with-deps",

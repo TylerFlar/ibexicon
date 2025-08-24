@@ -29,6 +29,26 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            wasm/ibxwasm/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('wasm/ibxwasm/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install wasm-pack
+        run: npm exec -- wasm-pack --version || cargo install wasm-pack --version 0.13.1
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build wasm (dev + patch)
+        run: npm run wasm:ci || true
+
       - name: Validate formatting
         run: npm run format:check
 

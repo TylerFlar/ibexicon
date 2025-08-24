@@ -99,4 +99,6 @@ See the in‑app Privacy page or `src/telemetry/` for details.
 
 PRs welcome! Please make a pull request with any changes to `dev`.
 
+More langauges and game presets are always welcomed.
+
 ---
