@@ -1,0 +1,84 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Restore npm cache (fallback)
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-
+
+      # Optional: Rust caches for WASM (safe even if you skip Milestone 11)
+      - name: Install Rust toolchain (for wasm)
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo registry & target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            wasm/ibxwasm/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('wasm/ibxwasm/Cargo.toml', 'wasm/ibxwasm/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
+
+      - name: Install deps
+        run: npm ci --prefer-offline
+
+      # If you added Milestone 11 (WASM), build the wasm bundle first; otherwise this is a no-op
+      - name: Build WASM (if present)
+        run: |
+          npm run wasm:build --if-present
+
+      - name: Run tests
+        run: npm test --silent
+
+      - name: Build site (Vite)
+        env:
+          # Vite reads these so `base` becomes "/<repo>/"
+          GITHUB_ACTIONS: "true"
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: npm run build
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
