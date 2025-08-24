@@ -25,8 +25,14 @@ function AssistantAppInner() {
   const { settings, history, guessInput, addGuess, setDataset, setLength } = session
   const { push } = useToasts()
   const [started, setStarted] = useState(false)
-  const [route, setRoute] = useState<string>(() => (typeof window !== 'undefined' ? window.location.hash : ''))
-  useEffect(() => { const handler = () => setRoute(window.location.hash); window.addEventListener('hashchange', handler); return () => window.removeEventListener('hashchange', handler) }, [])
+  const [route, setRoute] = useState<string>(() =>
+    typeof window !== 'undefined' ? window.location.hash : '',
+  )
+  useEffect(() => {
+    const handler = () => setRoute(window.location.hash)
+    window.addEventListener('hashchange', handler)
+    return () => window.removeEventListener('hashchange', handler)
+  }, [])
   // Hydrate from hash seed once on mount
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -310,12 +316,19 @@ function AssistantAppInner() {
                   onChange={(e) => session.setAttemptsMax(Number(e.target.value))}
                 />
               </label>
-              <label className="flex flex-col gap-1 text-xs font-medium w-full max-w-xs" title="Initial policy / strategy for suggestions">
+              <label
+                className="flex flex-col gap-1 text-xs font-medium w-full max-w-xs"
+                title="Initial policy / strategy for suggestions"
+              >
                 <span>Policy</span>
                 <select
                   className="px-3 py-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white/90 dark:bg-neutral-800/80 text-sm"
                   value={settings.policyMode}
-                  onChange={(e) => { const val = e.target.value as any; session.setPolicy(val); track({ name: 'policy_changed', props: { policy: val } }) }}
+                  onChange={(e) => {
+                    const val = e.target.value as any
+                    session.setPolicy(val)
+                    track({ name: 'policy_changed', props: { policy: val } })
+                  }}
                 >
                   <option value="auto">Auto (Bandit)</option>
                   <option value="composite">Composite</option>
@@ -324,19 +337,33 @@ function AssistantAppInner() {
                   <option value="unique-letters">Unique-letters</option>
                 </select>
               </label>
-              <label className="flex items-center gap-2 text-xs" title="Share anonymous usage to improve Ibexicon">
-                <input type="checkbox" checked={loadTelemetryEnabled()} onChange={(e) => { setTelemetryEnabled(e.target.checked) }} />
+              <label
+                className="flex items-center gap-2 text-xs"
+                title="Share anonymous usage to improve Ibexicon"
+              >
+                <input
+                  type="checkbox"
+                  checked={loadTelemetryEnabled()}
+                  onChange={(e) => {
+                    setTelemetryEnabled(e.target.checked)
+                  }}
+                />
                 <span>Share anonymous usage (opt-in)</span>
-                <a href="#/privacy" className="underline text-neutral-500">Privacy</a>
+                <a href="#/privacy" className="underline text-neutral-500">
+                  Privacy
+                </a>
               </label>
             </div>
             <div className="flex justify-end">
               <button
                 type="button"
-                className="px-6 py-2 rounded-md bg-blue-600 text-white font-semibold text-sm hover:bg-blue-500"
+                className="btn-primary text-sm"
                 onClick={() => {
                   setStarted(true)
-                  track({ name: 'settings_start', props: { length: settings.length, attemptsMax: settings.attemptsMax } })
+                  track({
+                    name: 'settings_start',
+                    props: { length: settings.length, attemptsMax: settings.attemptsMax },
+                  })
                 }}
               >
                 Start
@@ -356,7 +383,7 @@ function AssistantAppInner() {
             />
             <button
               type="button"
-              className="px-3 py-1 rounded-full bg-red-500 text-white hover:bg-red-600"
+              className="btn-secondary !rounded-full !py-1 !px-3"
               onClick={() => {
                 session.clear()
                 setStarted(false)
@@ -410,11 +437,7 @@ function AssistantAppInner() {
                 datasetId={settings.datasetId}
               />
               {/* Primary nav: Suggest main; secondary panels behind a disclosure */}
-              <TabBar
-                activeTab={activeTab}
-                onChange={(t) => setActiveTab(t)}
-                onForceSuggest={() => setActiveTab('suggest')}
-              />
+              <TabBar activeTab={activeTab} onChange={(t) => setActiveTab(t)} />
               <div>
                 {activeTab === 'suggest' && (
                   <section aria-label="Suggestions" className="w-full max-w-xl mx-auto">
@@ -482,7 +505,6 @@ export default App
 interface TabBarProps {
   activeTab: 'suggest' | 'analysis' | 'candidates' | 'leaderboard'
   onChange: (t: TabBarProps['activeTab']) => void
-  onForceSuggest: () => void
 }
 
 interface DatasetSelectorProps {
@@ -601,58 +623,30 @@ function DatasetSelector({ datasetId, onSelect }: DatasetSelectorProps) {
   )
 }
 
-function TabBar({ activeTab, onChange, onForceSuggest }: TabBarProps) {
-  const [moreOpen, setMoreOpen] = useState(false)
-  // If user collapses more while a secondary tab is active, revert to suggest.
-  useEffect(() => {
-    if (!moreOpen && activeTab !== 'suggest') onForceSuggest()
-  }, [moreOpen, activeTab, onForceSuggest])
+function TabBar({ activeTab, onChange }: TabBarProps) {
+  const tabs: { key: TabBarProps['activeTab']; label: string }[] = [
+    { key: 'suggest', label: 'Suggest' },
+    { key: 'analysis', label: 'Analysis' },
+    { key: 'candidates', label: 'Candidates' },
+    { key: 'leaderboard', label: 'Leaderboard' },
+  ]
   return (
     <div className="flex justify-center flex-wrap gap-2 mb-4 text-xs items-center">
-      <button
-        type="button"
-        onClick={() => onChange('suggest')}
-        className={
-          'px-3 py-1 rounded-md font-medium border ' +
-          (activeTab === 'suggest'
-            ? 'bg-indigo-600 text-white border-indigo-600'
-            : 'bg-neutral-100 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-700')
-        }
-      >
-        Suggest
-      </button>
-      <button
-        type="button"
-        onClick={() => setMoreOpen((v) => !v)}
-        className="px-2 py-1 rounded-md border bg-neutral-50 dark:bg-neutral-900 border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
-        aria-expanded={moreOpen}
-        aria-controls="secondary-panels"
-      >
-        {moreOpen ? 'Hide' : 'More'}
-      </button>
-      {moreOpen && (
-        <div id="secondary-panels" className="flex gap-2 flex-wrap">
-          {[
-            { key: 'analysis', label: 'Analysis' },
-            { key: 'candidates', label: 'Candidates' },
-            { key: 'leaderboard', label: 'Leaderboard' },
-          ].map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => onChange(t.key as any)}
-              className={
-                'px-2 py-1 rounded border font-medium ' +
-                (activeTab === t.key
-                  ? 'bg-indigo-500 text-white border-indigo-500'
-                  : 'bg-neutral-100 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700')
-              }
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {tabs.map((t) => (
+        <button
+          key={t.key}
+          type="button"
+          onClick={() => onChange(t.key)}
+          className={
+            'px-3 py-1 rounded-md font-medium border transition-colors ' +
+            (activeTab === t.key
+              ? 'bg-[var(--color-pine)] text-white border-[var(--color-pine)]'
+              : 'bg-neutral-100 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-700')
+          }
+        >
+          {t.label}
+        </button>
+      ))}
     </div>
   )
 }

@@ -89,8 +89,11 @@ export function Tile({
       return
     }
     // Colors mode (cycling / explicit trit setting)
-    if (e.key === ' ' || e.key === 'Enter') {
+    if (e.key === ' ') {
       cycle(e)
+    } else if (e.key === 'Enter') {
+      // Do NOT cycle color on Enter; let parent commit instead.
+      onEnter?.()
     } else if (onSet) {
       if (e.key === '0' || e.key === '1' || e.key === '2') {
         onSet(Number(e.key) as Trit)

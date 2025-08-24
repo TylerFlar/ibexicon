@@ -9,8 +9,8 @@ test('start session, enter guess, cycle tiles, get suggestions', async ({ page }
   await startBtn.click()
   // Type a 5-letter guess; dataset default length assumed 5.
   await page.keyboard.type('crane')
-  // Switch to Colors mode so cycling is enabled (if required)
-  await page.getByRole('button', { name: /colors/i }).click()
+  // Tiles can always be cycled via space; older UI had an explicit 'Colors' mode toggle.
+  // That toggle no longer exists, so we skip it.
   // Focus first tile and cycle twice (space)
   const firstTile = page.getByRole('button', { name: /position 1/i }).first()
   await firstTile.focus()

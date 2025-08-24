@@ -10,6 +10,7 @@
     "lint": "eslint . --fix",
     "preview": "vite preview",
     "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "vitest run",
     "test:cov": "vitest run --coverage",
     "test:watch": "vitest",

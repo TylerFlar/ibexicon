@@ -46,7 +46,7 @@ export function initialState(length: number): SessionState {
       attemptsMax: 10,
       colorblind: false,
       datasetId: `en-${length}`,
-      policyMode: 'auto',
+      policyMode: 'composite',
       accelMode: 'auto',
       theme: 'system',
     },
@@ -208,7 +208,7 @@ export function loadPersisted(): SessionState | null {
     const parsed = JSON.parse(raw)
     if (isValidPersist(parsed)) {
       // We now intentionally drop any persisted history/guessInput to avoid carrying over games.
-      const policyMode = parsed.settings.policyMode || 'auto'
+      const policyMode = parsed.settings.policyMode || 'composite'
       const accelMode = parsed.settings.accelMode || 'auto'
       const theme = parsed.settings.theme || 'system'
       return {

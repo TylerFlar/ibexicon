@@ -1,9 +1,9 @@
 /* === Custom styles (lean) === */
 :root {
-  --tile-bg-absent: #3a3a3c;
-  --tile-bg-present: #b59f3b;
-  --tile-bg-correct: #538d4e;
-  --tile-border: #565758;
+  --tile-bg-absent: #2a2a2a; /* charcoal */
+  --tile-bg-present: #dfae3c; /* golden ochre */
+  --tile-bg-correct: #3c6e71; /* pine */
+  --tile-border: #6e6e6e; /* stone */
   --tile-fg: #fff;
 }
 .colorblind {
@@ -102,14 +102,15 @@ body.app-centered {
   box-shadow: 0 0 0 3px #3b82f655;
 }
 /* Dark mode contrast adjustments */
+/* Dark mode keep similar but slightly muted */
 .dark .tile[data-state='absent'] {
-  --tile-bg: #2f2f31;
+  --tile-bg: #1e1e1e;
 }
 .dark .tile[data-state='present'] {
-  --tile-bg: #a4882d;
+  --tile-bg: #c79424;
 }
 .dark .tile[data-state='correct'] {
-  --tile-bg: #4a7d45;
+  --tile-bg: #275052;
 }
 .auto-shrink-tiles[data-word-length='16'] .tile {
   --tile-size: 2.8rem;
@@ -180,10 +181,44 @@ body.app-centered {
   line-height: 1rem;
   font-weight: 500;
   border-radius: 4px;
-  background: #e5e5e5;
+  background: var(--color-stone, #6e6e6e);
+  color: #fff;
 }
 .dark .kbd-key {
-  background: #404040;
+  background: #444;
+}
+
+/* Design system buttons */
+.btn-primary {
+  background: var(--color-pine, #3c6e71);
+  color: #fff;
+  border-radius: var(--radius, 12px);
+  padding: 0.6rem 1.1rem;
+  font-weight: 600;
+  box-shadow: var(--shadow);
+  transition: background-color 120ms;
+}
+.btn-primary:hover {
+  background: var(--color-pine-hover, #2e5456);
+}
+.btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  border: 2px solid var(--color-golden, #dfae3c);
+  color: var(--color-golden, #dfae3c);
+  background: transparent;
+  border-radius: var(--radius, 12px);
+  padding: 0.55rem 1rem;
+  font-weight: 600;
+  transition:
+    background-color 120ms,
+    color 120ms;
+}
+.btn-secondary:hover {
+  background: rgba(223, 174, 60, 0.12);
 }
 .analysis-section {
   margin-top: 1.5rem;

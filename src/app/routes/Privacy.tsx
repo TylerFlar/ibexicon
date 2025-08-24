@@ -2,7 +2,9 @@ export default function Privacy() {
   return (
     <div className="prose dark:prose-invert max-w-2xl mx-auto p-6">
       <h1>Privacy &amp; analytics</h1>
-      <p><strong>Off by default.</strong> You can opt-in from Settings.</p>
+      <p>
+        <strong>Off by default.</strong> You can opt-in from Settings.
+      </p>
       <h2>What we collect (if enabled)</h2>
       <ul>
         <li>Coarse events (e.g., “suggest requested”, “policy changed”).</li>

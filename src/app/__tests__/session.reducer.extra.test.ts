@@ -43,10 +43,12 @@ describe('session reducer extra coverage', () => {
 
   it('setPolicy and setAccelMode update when changed & ignore when same', () => {
     let s = initialState(5)
-    const samePolicy = reducer(s, { type: 'setPolicy', value: 'auto' })
+    // Default is now 'composite'; setting 'composite' again should return same reference
+    const samePolicy = reducer(s, { type: 'setPolicy', value: 'composite' })
     expect(samePolicy).toBe(s)
-    s = reducer(s, { type: 'setPolicy', value: 'composite' })
-    expect(s.settings.policyMode).toBe('composite')
+    // Changing to 'auto' should produce a new state
+    s = reducer(s, { type: 'setPolicy', value: 'auto' })
+    expect(s.settings.policyMode).toBe('auto')
     const sameAccel = reducer(s, { type: 'setAccelMode', value: 'auto' })
     expect(sameAccel).toBe(s)
     s = reducer(s, { type: 'setAccelMode', value: 'js' })

@@ -11,6 +11,10 @@ export default {
           correct: 'var(--tile-bg-correct)',
         },
       },
+      fontFamily: {
+        heading: ['Montserrat', 'Inter', 'Arial', 'Helvetica', 'sans-serif'],
+        sans: ['Inter', 'Montserrat', 'Arial', 'Helvetica', 'sans-serif'],
+      },
     },
   },
   plugins: [],
