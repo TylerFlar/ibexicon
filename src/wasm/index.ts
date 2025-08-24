@@ -5,10 +5,12 @@ export async function ensureWasm() {
   if (_mod) return _mod
   if (!_ready) {
     _ready = (async () => {
-      const mod = await import("@/wasm/pkg/ibxwasm.js")
-      // wasm-pack's bundler target self-initializes; default export is not a function here.
-      _mod = mod
-      return mod
+      const modNs: any = await import('@/wasm/pkg/ibxwasm.js')
+      // Our patched glue exports a default promise (init) plus named exports.
+      const promise = modNs.default && typeof modNs.default.then === 'function' ? modNs.default : null
+      if (promise) await promise // ensure instantiation finished
+      _mod = modNs
+      return modNs
     })()
   }
   return _ready
@@ -19,16 +21,23 @@ export async function wasmFeedbackCode(guess: string, secret: string): Promise<n
   try {
     const mod = await ensureWasm()
     return mod.feedback_code(guess, secret) as number
-  } catch { return null }
+  } catch {
+    return null
+  }
 }
-export async function wasmPatternRowU16(guess: string, secrets: string[]): Promise<Uint16Array | null> {
+export async function wasmPatternRowU16(
+  guess: string,
+  secrets: string[],
+): Promise<Uint16Array | null> {
   try {
     const mod = await ensureWasm()
     // guard: only valid for L <= 10
     if (guess.length > 10) return null
     // Create JS array to hand over (wasm-bindgen wants Array for our signature)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const arr: any = secrets
     return mod.pattern_row_u16(guess, arr) as Uint16Array
-  } catch { return null }
+  } catch {
+    return null
+  }
 }

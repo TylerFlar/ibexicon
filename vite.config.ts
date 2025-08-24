@@ -1,25 +1,24 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { fileURLToPath, URL } from 'node:url'
+import { defineConfig } from "vite"
+import react from "@vitejs/plugin-react"
+import { fileURLToPath, URL } from "node:url"
 
-// https://vite.dev/config/
+// Derive repo name in CI (GITHUB_REPOSITORY="owner/repo")
+const repo = process.env.GITHUB_REPOSITORY?.split("/")?.[1] ?? ""
+const isCI = !!process.env.GITHUB_ACTIONS
+const base = isCI && repo ? `/${repo}/` : "/"
+
 export default defineConfig({
-  base: '/ibexicon/',
+  base,
   plugins: [react()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  worker: {
+    format: 'es',
+  },
   build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          react: ['react', 'react-dom'],
-          recharts: ['recharts'],
-        },
-      },
-    },
-    chunkSizeWarningLimit: 600, // slightly higher after splitting
+    sourcemap: true,
   },
 })

@@ -56,7 +56,9 @@ export function WorkerSuggestPanel() {
   // Send accel mode to worker when changed
   useEffect(() => {
     if (!workerAvailable) return
-    client.setAccelMode(accelMode).catch(() => {/* ignore */})
+    client.setAccelMode(accelMode).catch(() => {
+      /* ignore */
+    })
   }, [accelMode, client, workerAvailable])
 
   // Load wordlist when length changes

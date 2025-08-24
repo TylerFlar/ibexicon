@@ -402,7 +402,7 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
         const alpha = 'abcdefghijklmnopqrstuvwxyz'
         function randWord(): string {
           let s = ''
-            for (let i = 0; i < L; i++) s += alpha[(Math.random() * 26) | 0]!
+          for (let i = 0; i < L; i++) s += alpha[(Math.random() * 26) | 0]!
           return s
         }
         const secrets: string[] = Array.from({ length: N }, randWord)
@@ -418,7 +418,7 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
             // We'll just call feedbackPattern via provider compute path by invoking feedbackPattern directly here.
             // We don't store results; we just ensure a similar number of operations.
             // Import local to avoid tree-shaking confusion.
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
+             
             // NOOP here; compute pattern to number.
             // We'll implement our own quick duplicate-aware pass for speed parity.
             const g = guess

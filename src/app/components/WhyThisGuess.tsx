@@ -62,7 +62,7 @@ export const WhyThisGuess: React.FC<WhyThisGuessProps> = ({ guess, words, priors
           for (let i = 0; i < n; i++) pArr[i] = priors[words[i]!] || 0
         } else {
           const u = 1 / (n || 1)
-            ;(pArr as any).fill(u)
+          ;(pArr as any).fill(u)
         }
         // Always perform full enumeration (no sampling) for deterministic, exact pattern probabilities.
         const res = explainGuess(guess, words, pArr, undefined)
@@ -190,7 +190,8 @@ export const WhyThisGuess: React.FC<WhyThisGuessProps> = ({ guess, words, priors
             </ul>
             {data && (
               <div className="mt-1 text-[0.55rem] opacity-70">
-                P(no overlap) = {(100 - data.coverageMass * 100).toFixed(2)}% (should closely match 00000 pattern probability since this is full enumeration).
+                P(no overlap) = {(100 - data.coverageMass * 100).toFixed(2)}% (should closely match
+                00000 pattern probability since this is full enumeration).
               </div>
             )}
           </div>

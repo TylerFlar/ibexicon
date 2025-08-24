@@ -256,17 +256,17 @@ export function createPatternProvider(opts?: ProviderOpts): PatternProvider {
         }
         if (!arr) {
           // JS fallback path
-            const tmp = new Uint16Array(N)
-            for (let i = 0; i < N; i++) {
-              const pat = feedbackPattern(guess, words[i]!)
-              tmp[i] = typeof pat === 'number' ? pat : Number(pat)
-            }
-            arr = tmp
+          const tmp = new Uint16Array(N)
+          for (let i = 0; i < N; i++) {
+            const pat = feedbackPattern(guess, words[i]!)
+            tmp[i] = typeof pat === 'number' ? pat : Number(pat)
+          }
+          arr = tmp
         }
         // Persist (arr guaranteed non-null)
-  const buf = arr.buffer.slice(0) as ArrayBuffer // clone to detach from potential views
-  lru.set(cacheKey, buf as ArrayBuffer)
-  await setPtab(length, guess, buf as ArrayBuffer, datasetId)
+        const buf = arr.buffer.slice(0) as ArrayBuffer // clone to detach from potential views
+        lru.set(cacheKey, buf as ArrayBuffer)
+        await setPtab(length, guess, buf as ArrayBuffer, datasetId)
         return arr
       })()
       pendingComputes.set(cacheKey, pending)

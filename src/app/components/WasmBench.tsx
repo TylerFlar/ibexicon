@@ -60,10 +60,10 @@ export function WasmBench({ client, defaultLength = 5 }: WasmBenchProps) {
           />
         </label>
         <button
-            type="button"
-            onClick={run}
-            disabled={running}
-            className="px-4 py-2 rounded bg-indigo-600 text-white font-medium disabled:opacity-40"
+          type="button"
+          onClick={run}
+          disabled={running}
+          className="px-4 py-2 rounded bg-indigo-600 text-white font-medium disabled:opacity-40"
         >
           {running ? 'Running…' : 'Run bench'}
         </button>

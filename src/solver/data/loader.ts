@@ -30,6 +30,8 @@ interface Manifest {
   version: 2
   sets: WordlistDescriptor[]
   meta?: any
+  // Back-compat convenience: derived sorted unique list of lengths used by UI debug panels.
+  lengths: number[]
 }
 
 let manifestPromise: Promise<Manifest> | null = null
@@ -58,20 +60,26 @@ export function loadManifest(): Promise<Manifest> {
     manifestPromise = fetch(`${basePath()}/manifest.json`).then(async (r) => {
       if (!r.ok) throw new Error(`Failed manifest: ${r.status}`)
       const raw = await r.json()
-      // If this looks like the old schema (has lengths), adapt minimally to new interface.
+      let manifest: Manifest
+      // Legacy schema support: raw.lengths was an array of numbers.
       if (raw && Array.isArray(raw.lengths)) {
         const sets: WordlistDescriptor[] = raw.lengths.map((L: number) => ({
           id: `en-${L}`,
-          length: L,
-          category: 'Core',
-          displayName: `English ${L}`,
-          wordsFile: `en-${L}.txt`,
-          priorsFile: `en-${L}-priors.json`,
-          size: raw.vocab?.[String(L)],
+            length: L,
+            category: 'Core',
+            displayName: `English ${L}`,
+            wordsFile: `en-${L}.txt`,
+            priorsFile: `en-${L}-priors.json`,
+            size: raw.vocab?.[String(L)],
         }))
-        return { version: 2, sets, meta: raw.meta }
+        manifest = { version: 2, sets, meta: raw.meta, lengths: [] as number[] }
+      } else {
+        manifest = raw as Manifest
       }
-      return raw as Manifest
+      // Always (re)compute lengths to ensure presence & correctness.
+      const lengths = [...new Set(manifest.sets.map((s) => s.length))].sort((a, b) => a - b)
+      manifest.lengths = lengths
+      return manifest
     })
   }
   return manifestPromise

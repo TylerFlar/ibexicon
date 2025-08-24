@@ -4,7 +4,7 @@ import { feedbackPattern } from '@/solver/feedback'
 
 function randWord(len: number): string {
   let s = ''
-  for (let i = 0; i < len; i++) s += String.fromCharCode(97 + (Math.random() * 26) | 0)
+  for (let i = 0; i < len; i++) s += String.fromCharCode((97 + Math.random() * 26) | 0)
   return s
 }
 
@@ -20,7 +20,7 @@ beforeAll(async () => {
 })
 
 describe('wasm parity (random samples)', () => {
-  const lengths = [4,5,6,7,8,9,10]
+  const lengths = [4, 5, 6, 7, 8, 9, 10]
   for (const L of lengths) {
     it(`feedback_code matches JS encode (L=${L})`, async () => {
       if (!wasmAvailable) return expect(true).toBe(true) // trivial pass to mark skip intent
@@ -54,4 +54,3 @@ describe('wasm parity (random samples)', () => {
     }
   })
 })
-
