@@ -100,14 +100,17 @@ export function GuessRow({
           disabled={disabled}
           onCycle={() => cycleTritAt(i)}
           onSet={(v) => setTritAt(i, v)}
-          disableCycle={false} /* always allow cycling */
+          disableCycle={false}
           colorblind={colorblind}
           selected={i === cursor}
           onLetter={(ch) => applyLetter(ch)}
           onBackspace={() => applyBackspace()}
           onNavigate={(d) => navigate(d)}
           onEnter={handleCommit}
-          onSelect={() => setCursor(i)}
+          onSelect={() => {
+            setCursor(i)
+            hiddenInputRef.current?.focus()
+          }}
         />
       )),
     [
@@ -137,7 +140,13 @@ export function GuessRow({
       const target = e.target as HTMLElement | null
       if (target) {
         const tag = target.tagName
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || (target as any).isContentEditable) return
+        // Allow keystrokes if the focused input is our hidden mobile field; otherwise skip typical editable elements
+        if (
+          target !== hiddenInputRef.current &&
+          (tag === 'INPUT' || tag === 'TEXTAREA' || (target as any).isContentEditable)
+        ) {
+          return
+        }
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return
       if (/^[a-zA-Z]$/.test(e.key)) {
@@ -161,12 +170,47 @@ export function GuessRow({
     return () => window.removeEventListener('keydown', handler)
   }, [disabled, applyLetter, applyBackspace, navigate, handleCommit])
 
+  // Hidden input for mobile soft keyboard: we capture raw text additions and diffs.
+  const hiddenInputRef = useRef<HTMLInputElement | null>(null)
+  const [hiddenMirror, setHiddenMirror] = useState('')
+  const onHiddenChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value
+    if (!raw) return // field got cleared
+    // Take the last alpha character typed
+    const ch = raw.slice(-1)
+    if (/^[a-zA-Z]$/.test(ch)) {
+      applyLetter(ch.toLowerCase())
+    } else if (ch === ' ' || ch === '\n') {
+      // ignore spacing/newlines
+    }
+    // Reset mirror so next key produces distinct change
+    setHiddenMirror('')
+  }
+
   return (
     <div
       className="flex flex-col items-center gap-2"
       role="group"
       aria-label="Active guess row (type letters, then switch to Colors mode to set feedback)"
     >
+      {/* Hidden text input to summon mobile soft keyboard.
+          We mirror keystrokes via onChange and then immediately clear the field so
+          the visible tiles remain the primary UI. */}
+      <input
+        ref={hiddenInputRef}
+        type="text"
+        inputMode="text"
+        autoCapitalize="none"
+        autoComplete="off"
+        autoCorrect="off"
+        spellCheck={false}
+        aria-hidden="true"
+        tabIndex={-1}
+        className="absolute w-px h-px -m-px overflow-hidden whitespace-nowrap border-0 p-0"
+        value={hiddenMirror}
+        onChange={onHiddenChange}
+        onBlur={() => setHiddenMirror('')}
+      />
       <div className="flex flex-col items-center gap-1 mb-1 w-full text-[0.6rem] text-neutral-500 dark:text-neutral-400">
         <div>
           {value.length}/{length} letters (click tiles to set colors while typing)

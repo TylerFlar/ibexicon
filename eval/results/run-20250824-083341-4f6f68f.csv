@@ -1,0 +1,5 @@
+datasetId,policy,length,trials,solved,failRate,avgAttempts,avgTimeMs,avgFinalS_whenFailed
+en-4,composite,4,10,9,0.100000,2.6667,844.90,14.00
+en-5,composite,5,10,10,0.000000,2.9000,861.30,0.00
+en-4,pure-eig,4,10,9,0.100000,3.5556,896.80,1.00
+en-5,pure-eig,5,10,9,0.100000,3.4444,1034.10,2.00

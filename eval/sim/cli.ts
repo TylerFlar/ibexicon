@@ -362,6 +362,15 @@ async function main() {
   // latest copies
   fs.copyFileSync(csvPath, path.join(outDir, 'latest.csv'))
   fs.copyFileSync(jsonPath, path.join(outDir, 'latest.json'))
+  // Also copy into public/ so the static site (GitHub Pages) can serve the most recent results.
+  try {
+    const publicEvalDir = path.resolve('public', 'eval', 'results')
+    fs.mkdirSync(publicEvalDir, { recursive: true })
+    fs.copyFileSync(csvPath, path.join(publicEvalDir, 'latest.csv'))
+    fs.copyFileSync(jsonPath, path.join(publicEvalDir, 'latest.json'))
+  } catch (e) {
+    console.warn('[warn] failed to copy latest results into public/:', (e as any)?.message)
+  }
 
   printTable(rows)
   console.log('Results written to:')

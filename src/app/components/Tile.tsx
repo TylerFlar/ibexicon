@@ -91,6 +91,10 @@ export function Tile({
     // Colors mode (cycling / explicit trit setting)
     if (e.key === ' ') {
       cycle(e)
+    } else if (e.key === 'Backspace') {
+      // Allow deleting last letter even if user focused a tile in color mode (falls back to global handler otherwise)
+      onBackspace?.(index)
+      e.preventDefault()
     } else if (e.key === 'Enter') {
       // Do NOT cycle color on Enter; let parent commit instead.
       onEnter?.()

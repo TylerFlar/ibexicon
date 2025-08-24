@@ -1,0 +1,73 @@
+{
+  "meta": {
+    "timestamp": "2025-08-24T08:33:41.771Z",
+    "gitSha": "4f6f68f",
+    "datasets": [
+      {
+        "id": "en-4",
+        "length": 4,
+        "category": "Core"
+      },
+      {
+        "id": "en-5",
+        "length": 5,
+        "category": "Core"
+      }
+    ],
+    "policies": ["composite", "pure-eig"],
+    "trialsPerShard": 10,
+    "attempts": 6,
+    "concurrency": 2,
+    "baseSeed": 1756024402187,
+    "bandit": {
+      "resetPerTrial": false,
+      "halfLifeUpdates": 20
+    }
+  },
+  "rows": [
+    {
+      "datasetId": "en-4",
+      "policy": "composite",
+      "length": 4,
+      "trials": 10,
+      "solved": 9,
+      "failRate": 0.1,
+      "avgAttempts": 2.6666666666666665,
+      "avgTimeMs": 844.9,
+      "avgFinalS_whenFailed": 14
+    },
+    {
+      "datasetId": "en-5",
+      "policy": "composite",
+      "length": 5,
+      "trials": 10,
+      "solved": 10,
+      "failRate": 0,
+      "avgAttempts": 2.9,
+      "avgTimeMs": 861.3,
+      "avgFinalS_whenFailed": 0
+    },
+    {
+      "datasetId": "en-4",
+      "policy": "pure-eig",
+      "length": 4,
+      "trials": 10,
+      "solved": 9,
+      "failRate": 0.1,
+      "avgAttempts": 3.5555555555555554,
+      "avgTimeMs": 896.8,
+      "avgFinalS_whenFailed": 1
+    },
+    {
+      "datasetId": "en-5",
+      "policy": "pure-eig",
+      "length": 5,
+      "trials": 10,
+      "solved": 9,
+      "failRate": 0.1,
+      "avgAttempts": 3.4444444444444446,
+      "avgTimeMs": 1034.1,
+      "avgFinalS_whenFailed": 2
+    }
+  ]
+}
