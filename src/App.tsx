@@ -232,6 +232,23 @@ function AssistantAppInner() {
                   onChange={(e) => session.setAttemptsMax(Number(e.target.value))}
                 />
               </label>
+              <label
+                className="flex flex-col gap-1 text-xs font-medium w-full max-w-xs"
+                title="Initial policy / strategy for suggestions"
+              >
+                <span>Policy</span>
+                <select
+                  className="px-3 py-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white/90 dark:bg-neutral-800/80 text-sm"
+                  value={settings.policyMode}
+                  onChange={(e) => session.setPolicy(e.target.value as any)}
+                >
+                  <option value="auto">Auto (Bandit)</option>
+                  <option value="composite">Composite</option>
+                  <option value="pure-eig">Pure-EIG</option>
+                  <option value="in-set-only">In-set-only</option>
+                  <option value="unique-letters">Unique-letters</option>
+                </select>
+              </label>
             </div>
             <label className="flex items-center gap-2 text-xs" title="Colorblind mode">
               <input
