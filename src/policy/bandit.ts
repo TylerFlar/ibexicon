@@ -58,23 +58,53 @@ function decayFactor(halfLife: number, n: number): number {
 
 /** Return a sampled policy using Thompson Sampling (Beta draws) */
 export function samplePolicy(L: number): PolicyId {
-  // Future: accept config for exploration tweaking
+  // Proper Beta sampling via two Gamma draws (Marsaglia & Tsang for k>=1, boost for k<1)
   const s = loadState(L)
   const arms = s.arms
-  const draws: Array<[PolicyId, number]> = []
+
+  function randNormal(): number {
+    // Box-Muller
+    const u = Math.random() || 1e-12
+    const v = Math.random() || 1e-12
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v)
+  }
+  function sampleGamma(k: number): number {
+    if (k < 1) {
+      // Boost: Gamma(k) = Gamma(k+1) * U^{1/k}
+      const u = Math.random() || 1e-12
+      return sampleGamma(k + 1) * Math.pow(u, 1 / k)
+    }
+    const d = k - 1 / 3
+    const c = 1 / Math.sqrt(9 * d)
+    while (true) {
+      let x: number
+      let v: number
+      do {
+        x = randNormal()
+        v = 1 + c * x
+      } while (v <= 0)
+      v = v * v * v
+      const u = Math.random()
+      if (u < 1 - 0.0331 * (x * x) * (x * x)) return d * v
+      if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v
+    }
+  }
+  function sampleBeta(a: number, b: number): number {
+    const x = sampleGamma(a)
+    const y = sampleGamma(b)
+    return x / (x + y)
+  }
+  let best: PolicyId | null = null
+  let bestTheta = -Infinity
   for (const id of Object.keys(arms) as PolicyId[]) {
     const { a, b } = arms[id]!
-    // Lightweight approximate Beta sampling
-    let x=0, y=0
-    const u1 = Math.random() || 1e-12
-    const u2 = Math.random() || 1e-12
-    x = Math.pow(u1, 1/a)
-    y = Math.pow(u2, 1/b)
-    const theta = x / (x + y)
-    draws.push([id, theta])
+    const theta = sampleBeta(a, b)
+    if (theta > bestTheta) {
+      bestTheta = theta
+      best = id
+    }
   }
-  draws.sort((a,b)=> b[1]-a[1])
-  return draws[0]![0]
+  return (best as PolicyId) || 'composite'
 }
 
 /** Update bandit with a normalized reward in [0,1] */
