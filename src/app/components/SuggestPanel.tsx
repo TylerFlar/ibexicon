@@ -110,7 +110,9 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
           priors: wordData.priors,
           attemptsLeft,
           attemptsMax,
-          topK: 10,
+          topK: 20,
+          // Disable early cut so we can reliably get a larger topK set (>3)
+          earlyCut: false,
           tau: null,
           onProgress: (p) => setProgress(p),
         },

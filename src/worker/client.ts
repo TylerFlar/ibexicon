@@ -17,6 +17,8 @@ export interface ScoreArgs {
   sampleSize?: number
   prefilterLimit?: number
   chunkSize?: number
+  earlyCut?: boolean
+  epsilon?: number
   onProgress?: ProgressHandler
 }
 
@@ -227,6 +229,8 @@ export class SolverWorkerClient {
           sampleSize: rest.sampleSize,
           prefilterLimit: rest.prefilterLimit,
           chunkSize: rest.chunkSize,
+          earlyCut: rest.earlyCut,
+          epsilon: rest.epsilon,
         },
       })
     })
