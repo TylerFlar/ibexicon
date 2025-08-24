@@ -358,3 +358,9 @@ export default tseslint.config([
   },
 ])
 ```
+
+Deployed via GitHub Actions to Pages on pushes to main.
+
+Vite base is auto-derived from GITHUB_REPOSITORY inside CI; locally it’s /.
+
+Site URL: https://<your-username>.github.io/ibexicon/

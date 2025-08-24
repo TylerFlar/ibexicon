@@ -35,7 +35,6 @@ jobs:
           restore-keys: |
             npm-${{ runner.os }}-
 
-      # Optional: Rust caches for WASM (safe even if you skip Milestone 11)
       - name: Install Rust toolchain (for wasm)
         uses: dtolnay/rust-toolchain@stable
       - name: Cache cargo registry & target
@@ -52,7 +51,6 @@ jobs:
       - name: Install deps
         run: npm ci --prefer-offline
 
-      # If you added Milestone 11 (WASM), build the wasm bundle first; otherwise this is a no-op
       - name: Build WASM (if present)
         run: |
           npm run wasm:build --if-present
