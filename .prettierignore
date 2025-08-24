@@ -1,0 +1,6 @@
+# Ignore build outputs and generated artifacts
+node_modules
+coverage
+dist
+src/wasm/pkg
+wasm/ibxwasm/target
