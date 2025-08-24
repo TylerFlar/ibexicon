@@ -1,16 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { buildCandidates } from '@/app/logic/constraints'
-import type { SessionState } from '@/app/state/session'
-import { SolverWorkerClient, type ScoreResult } from '@/worker/client'
+import type { UseSessionResult } from '@/app/hooks/useSession'
 import { alphaFor } from '@/solver/scoring'
 import WhyThisGuess from '@/app/components/WhyThisGuess'
 import { loadWordlistSet, loadWordlistSetById } from '@/solver/data/loader'
 import { useToasts } from '@/app/components/Toaster'
+import { samplePolicy, updatePolicy, rewardFromSizes, resetState as resetBanditState } from '@/policy/bandit'
+import { suggestByPolicy, type PolicyId } from '@/policy/policies'
 // Simplified; WhatIf / preview removed
 
-export interface SuggestPanelProps {
-  session: SessionState
-}
+export interface SuggestPanelProps { session: UseSessionResult }
 
 interface WordData {
   words: string[]
@@ -70,24 +69,16 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
     return { label: 'Balanced', tone: 'neutral' as const }
   }, [alpha])
 
-  // Worker client lifecycle
-  const clientRef = useRef<SolverWorkerClient | null>(null)
-  useEffect(() => {
-    const c = new SolverWorkerClient()
-    clientRef.current = c
-    c.warmup().catch(() => {})
-    return () => c.dispose()
-  }, [])
-
-  // Suggest scoring state
-  const [progress, setProgress] = useState(0)
+  // Policy-based suggestions (no worker)
   const [inFlight, setInFlight] = useState(false)
-  const [results, setResults] = useState<ScoreResult['suggestions'] | null>(null)
+  const [results, setResults] = useState<
+    { guess: string; eig: number; solveProb: number; expectedRemaining: number; alpha?: number }[] | null
+  >(null)
   const [openWhy, setOpenWhy] = useState<Record<string, boolean>>({})
-  const abortRef = useRef<AbortController | null>(null)
+  const lastPolicyRef = useRef<PolicyId | null>(null)
 
-  const startScoring = useCallback(() => {
-    if (!clientRef.current || !wordData || !candidates) return
+  const startScoring = useCallback(async () => {
+    if (!wordData || !candidates) return
     if (candidateWords.length === 0) {
       push({
         message:
@@ -96,85 +87,114 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
       })
       return
     }
-    // Cancel prior
-    if (abortRef.current) {
-      abortRef.current.abort()
-    }
-    const controller = new AbortController()
-    abortRef.current = controller
     setInFlight(true)
-    setProgress(0)
     setResults(null)
-    clientRef.current
-      .score(
-        {
-          words: candidateWords,
-          priors: wordData.priors,
-          attemptsLeft,
-          attemptsMax,
-          topK: 20,
-          // Disable early cut so we can reliably get a larger topK set (>3)
-          earlyCut: false,
-          tau: null,
-          onProgress: (p) => setProgress(p),
-        },
-        controller.signal,
-      )
-      .then((res) => {
-        if (res.canceled) return
-        setResults(res.suggestions)
+    try {
+      const userChoice = settings.policyMode
+      const activePolicy: PolicyId = userChoice === 'auto' ? samplePolicy(settings.length) : (userChoice as PolicyId)
+      lastPolicyRef.current = activePolicy
+      const suggestions = await suggestByPolicy(activePolicy, {
+        words: candidateWords,
+        priors: wordData.priors,
+        attemptsLeft,
+        attemptsMax,
+        topK: 20,
+        tau: null,
       })
-      .catch((e) => {
-        push({ message: `Scoring error: ${e.message || e}`, tone: 'error' })
-      })
-      .finally(() => {
-        setInFlight(false)
-      })
-  }, [wordData, candidates, candidateWords, attemptsLeft, attemptsMax, push])
-
-  const cancel = () => {
-    if (abortRef.current) {
-      abortRef.current.abort()
+      const mapped = suggestions.map((s) => ({
+        guess: s.guess,
+        eig: s.eig ?? 0,
+        solveProb: s.solveProb ?? 0,
+        expectedRemaining: s.expectedRemaining ?? 0,
+        alpha: s.alpha,
+      }))
+      setResults(mapped)
+    } catch (e: any) {
+      push({ message: `Suggest error: ${e.message || e}`, tone: 'error' })
+    } finally {
+      setInFlight(false)
     }
-    clientRef.current?.cancel()
-  }
+  }, [wordData, candidates, candidateWords, attemptsLeft, attemptsMax, push, settings.policyMode, settings.length])
 
-  // Auto-run scoring for smaller candidate sets
+  // Auto-run for small sets
   useEffect(() => {
     if (!results && !inFlight && candidateWords.length > 0 && candidateWords.length <= 500) {
       startScoring()
     }
   }, [candidateWords.length, results, inFlight, startScoring])
 
+  // Bandit reward update effect
+  const prevHistoryLenRef = useRef(history.length)
+  useEffect(() => {
+    if (!wordData) return
+    if (history.length > prevHistoryLenRef.current) {
+      const n = history.length
+      const before = buildCandidates(wordData.words, history.slice(0, n - 1)).aliveCount()
+      const after = buildCandidates(wordData.words, history).aliveCount()
+      const { r01 } = rewardFromSizes(before, after)
+      const used = lastPolicyRef.current
+      if (used && settings.policyMode === 'auto') {
+        updatePolicy(settings.length, used, r01)
+      }
+      lastPolicyRef.current = null
+    }
+    prevHistoryLenRef.current = history.length
+  }, [history, wordData, settings.policyMode, settings.length])
+
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2 text-[0.65rem] text-neutral-500 dark:text-neutral-400">
-        <span>{candidateWords.length.toLocaleString()} candidates</span>
-        {alpha != null && explorationState && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-neutral-300 dark:border-neutral-600 bg-neutral-100 dark:bg-neutral-800">
-            <strong className="font-semibold tracking-tight">{explorationState.label}</strong>
-            <span className="opacity-70 tabular-nums">{Math.round(alpha * 100)}%</span>
-          </span>
-        )}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2 text-[0.65rem] text-neutral-500 dark:text-neutral-400">
+          <span>{candidateWords.length.toLocaleString()} candidates</span>
+          {alpha != null && explorationState && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-neutral-300 dark:border-neutral-600 bg-neutral-100 dark:bg-neutral-800">
+              <strong className="font-semibold tracking-tight">{explorationState.label}</strong>
+              <span className="opacity-70 tabular-nums">{Math.round(alpha * 100)}%</span>
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-[0.65rem]">
+          <label className="flex items-center gap-1">
+            <span className="font-semibold tracking-tight text-neutral-600 dark:text-neutral-300">Policy:</span>
+            <select
+              className="px-1 py-0.5 rounded border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-[0.65rem]"
+              value={settings.policyMode}
+              onChange={(e) => session.setPolicy(e.target.value as any)}
+            >
+              <option value="auto">Auto (Bandit)</option>
+              <option value="composite">Composite</option>
+              <option value="pure-eig">Pure-EIG</option>
+              <option value="in-set-only">In-set-only</option>
+              <option value="unique-letters">Unique-letters</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              resetBanditState(settings.length)
+              push({ message: 'Bandit state reset', tone: 'info' })
+            }}
+            className="px-2 py-0.5 rounded border border-neutral-300 dark:border-neutral-600 text-[0.6rem] hover:bg-neutral-100 dark:hover:bg-neutral-700"
+          >
+            Reset bandit
+          </button>
+        </div>
       </div>
       {loading && <p className="text-xs text-neutral-500">Loading wordlist…</p>}
       {error && <p className="text-xs text-red-600 dark:text-red-400">Failed to load: {error}</p>}
       <div className="flex justify-center">
         <button
           type="button"
-          onClick={inFlight ? cancel : startScoring}
-          disabled={loading || !wordData || candidateWords.length === 0}
+          onClick={startScoring}
+          disabled={loading || !wordData || candidateWords.length === 0 || inFlight}
           className="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-semibold disabled:opacity-40"
         >
-          {inFlight ? 'Cancel' : 'Rank Suggestions'}
+          {inFlight ? 'Computing…' : 'Rank Suggestions'}
         </button>
       </div>
       {inFlight && (
         <div className="h-2 bg-neutral-200 dark:bg-neutral-800 rounded overflow-hidden">
-          <div
-            className="h-full bg-indigo-500 transition-all"
-            style={{ width: `${Math.round(progress * 100)}%` }}
-          />
+          <div className="h-full bg-indigo-500 animate-pulse" style={{ width: '60%' }} />
         </div>
       )}
       {results && results.length > 0 && (
@@ -249,14 +269,14 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
                       {s.expectedRemaining.toFixed(1)}
                     </td>
                   </tr>
-                  {openWhy[s.guess] && candidateWords.length > 0 && clientRef.current && (
+                  {openWhy[s.guess] && candidateWords.length > 0 && (
                     <tr className="bg-neutral-50 dark:bg-neutral-900/40">
                       <td colSpan={4} className="p-2">
                         <WhyThisGuess
                           guess={s.guess}
                           words={candidateWords}
                           priors={wordData?.priors || {}}
-                          client={clientRef.current}
+                          client={null as any /* TODO: adapt WhyThisGuess to optional worker */}
                         />
                       </td>
                     </tr>
