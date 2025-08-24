@@ -14,6 +14,7 @@ export interface Settings {
   attemptsMax: number
   colorblind: boolean
   datasetId?: string // id of the currently selected wordlist set (implies length)
+  policyMode: 'auto' | 'composite' | 'pure-eig' | 'in-set-only' | 'unique-letters'
 }
 
 export interface SessionState {
@@ -32,6 +33,7 @@ export type Action =
   | { type: 'clear' }
   | { type: 'toggleColorblind' }
   | { type: 'setAttemptsMax'; value: number }
+  | { type: 'setPolicy'; value: Settings['policyMode'] }
 
 export function initialState(length: number): SessionState {
   return {
@@ -40,6 +42,7 @@ export function initialState(length: number): SessionState {
       attemptsMax: 10,
       colorblind: false,
       datasetId: `en-${length}`,
+      policyMode: 'auto',
     },
     history: [],
     guessInput: '',
@@ -65,6 +68,7 @@ export function reducer(state: SessionState, action: Action): SessionState {
           datasetId: state.settings.datasetId?.endsWith(String(length))
             ? state.settings.datasetId
             : `en-${length}`,
+          policyMode: state.settings.policyMode,
         },
         history: [],
         guessInput: '',
@@ -128,6 +132,10 @@ export function reducer(state: SessionState, action: Action): SessionState {
       const attemptsMax = Math.max(1, Math.min(100, Math.floor(action.value)))
       return { ...state, settings: { ...state.settings, attemptsMax } }
     }
+    case 'setPolicy': {
+      if (state.settings.policyMode === action.value) return state
+      return { ...state, settings: { ...state.settings, policyMode: action.value } }
+    }
     default:
       return state
   }
@@ -142,6 +150,7 @@ function isValidPersist(obj: any): obj is SessionState {
   if (!settings || typeof settings !== 'object') return false
   const requiredSettings = ['length', 'attemptsMax', 'colorblind'] as const
   if (!requiredSettings.every((k) => k in settings)) return false
+  // policyMode optional in older persists; if missing we'll add default later
   if (!Array.isArray(history)) return false
   if (typeof guessInput !== 'string') return false
   if (
@@ -149,6 +158,12 @@ function isValidPersist(obj: any): obj is SessionState {
     typeof settings.attemptsMax !== 'number' ||
     typeof settings.colorblind !== 'boolean' ||
     (settings.datasetId && typeof settings.datasetId !== 'string') ||
+    (settings.policyMode &&
+      settings.policyMode !== 'auto' &&
+      settings.policyMode !== 'composite' &&
+      settings.policyMode !== 'pure-eig' &&
+      settings.policyMode !== 'in-set-only' &&
+      settings.policyMode !== 'unique-letters') ||
     false
   )
     return false
@@ -170,8 +185,9 @@ export function loadPersisted(): SessionState | null {
     const parsed = JSON.parse(raw)
     if (isValidPersist(parsed)) {
       // We now intentionally drop any persisted history/guessInput to avoid carrying over games.
+      const policyMode = parsed.settings.policyMode || 'auto'
       return {
-        settings: parsed.settings,
+        settings: { ...parsed.settings, policyMode },
         history: [],
         guessInput: '',
       }

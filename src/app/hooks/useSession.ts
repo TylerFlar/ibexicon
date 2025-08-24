@@ -20,6 +20,7 @@ export interface UseSessionResult extends SessionState {
   clear(): void
   toggleColorblind(): void
   setAttemptsMax(value: number): void
+  setPolicy(value: 'auto' | 'composite' | 'pure-eig' | 'in-set-only' | 'unique-letters'): void
 }
 
 export function useSession(): UseSessionResult {
@@ -56,6 +57,11 @@ export function useSession(): UseSessionResult {
     (value: number) => dispatch({ type: 'setAttemptsMax', value }),
     [],
   )
+  const setPolicy = useCallback(
+    (value: 'auto' | 'composite' | 'pure-eig' | 'in-set-only' | 'unique-letters') =>
+      dispatch({ type: 'setPolicy', value }),
+    [],
+  )
 
   return {
     ...state,
@@ -69,5 +75,6 @@ export function useSession(): UseSessionResult {
     clear,
     toggleColorblind,
     setAttemptsMax,
+    setPolicy,
   }
 }
