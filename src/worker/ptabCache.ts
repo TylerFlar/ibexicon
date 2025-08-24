@@ -5,19 +5,37 @@ import { ByteLRU } from './lru'
 import { parsePtabBinary } from '@/ptab/parse'
 import { getPtab, setPtab } from './idb'
 
-export interface PtabMeta { L: number; N: number; M: number; hash32: number; seedIndices: Uint32Array }
-export interface PtabTable { meta: PtabMeta; planes: Map<number, Uint16Array> }
+export interface PtabMeta {
+  L: number
+  N: number
+  M: number
+  hash32: number
+  seedIndices: Uint32Array
+}
+export interface PtabTable {
+  meta: PtabMeta
+  planes: Map<number, Uint16Array>
+}
 
 export interface PatternProvider {
   ensureForLength(
     length: number,
     words: string[],
     onProgress?: (stage: string, percent: number) => void,
+    datasetId?: string,
   ): Promise<PtabMeta | null>
-  getPatterns(length: number, words: string[], guess: string): Promise<Uint16Array>
+  getPatterns(
+    length: number,
+    words: string[],
+    guess: string,
+    datasetId?: string,
+  ): Promise<Uint16Array>
   clearMemory(): void
-  statsForLength(length: number): { memorySeedPlanes: number; memoryFallback: number }
-  clearFallbackForLength(length: number): void
+  statsForLength(
+    length: number,
+    datasetId?: string,
+  ): { memorySeedPlanes: number; memoryFallback: number }
+  clearFallbackForLength(length: number, datasetId?: string): void
 }
 
 interface LengthState {
@@ -29,7 +47,9 @@ interface LengthState {
   bigMatrix?: Uint16Array // backing matrix of size M*N (row-major)
 }
 
-interface ProviderOpts { memoryBudgetMB?: number }
+interface ProviderOpts {
+  memoryBudgetMB?: number
+}
 
 // FNV-1a 32-bit -- mirrored from build script, kept tiny.
 function fnv1a32(str: string): number {
@@ -46,42 +66,75 @@ function basePath(): string {
   try {
     // @ts-ignore
     base = (import.meta.env && import.meta.env.BASE_URL) || '/'
-  } catch {/* ignore */}
+  } catch {
+    /* ignore */
+  }
   if (base.endsWith('/')) base = base.slice(0, -1)
   return `${base}/wordlists/en`
 }
 
 export function createPatternProvider(opts?: ProviderOpts): PatternProvider {
-  const lengthStates = new Map<number, LengthState>()
+  // key: datasetKey = datasetId||'core' + '|' + length
+  const lengthStates = new Map<string, LengthState>()
   const lru = new ByteLRU({ budgetBytes: (opts?.memoryBudgetMB ?? 128) * 1024 * 1024 })
   const pendingComputes = new Map<string, Promise<Uint16Array>>()
 
-  function stateFor(length: number): LengthState {
-    let st = lengthStates.get(length)
+  function dsKey(length: number, datasetId?: string): string {
+    return `${datasetId || 'core'}|${length}`
+  }
+
+  function stateFor(length: number, datasetId?: string): LengthState {
+    const key = dsKey(length, datasetId)
+    let st = lengthStates.get(key)
     if (!st) {
       st = { assetLoaded: false, assetIgnored: false }
-      lengthStates.set(length, st)
+      lengthStates.set(key, st)
     }
     return st
   }
 
-  async function fetchAsset(length: number): Promise<ArrayBuffer | null> {
-    const url = `${basePath()}/ibxptab-${length}.bin`
+  async function fetchAsset(length: number, datasetId?: string): Promise<ArrayBuffer | null> {
+    // New primary convention: ptab-<id>.bin where id includes length (e.g. en-5, nyt-5)
+    const primary = datasetId
+      ? `${basePath()}/ptab-${datasetId}.bin`
+      : `${basePath()}/ptab-en-${length}.bin`
+    // Legacy fallback(s): ibxptab-<L>.bin
+    const legacy = `${basePath()}/ibxptab-${length}.bin`
+    const urls = [primary]
+    if (!urls.includes(legacy)) urls.push(legacy)
     try {
-      const res = await fetch(url)
-      if (!res.ok) return null
-      return await res.arrayBuffer()
+      for (const u of urls) {
+        try {
+          const res = await fetch(u)
+          if (res.ok) return await res.arrayBuffer()
+        } catch {
+          /* try next */
+        }
+      }
+      return null
     } catch {
       return null
     }
   }
 
-  function parseBinary(buf: ArrayBuffer, words: string[], length: number, hash32: number): PtabTable | null {
+  function parseBinary(
+    buf: ArrayBuffer,
+    words: string[],
+    length: number,
+    hash32: number,
+    datasetId?: string,
+  ): PtabTable | null {
     const parsed = parsePtabBinary(buf, words, length, hash32)
     if (!parsed) return null
-    const meta: PtabMeta = { L: parsed.meta.L, N: parsed.meta.N, M: parsed.meta.M, hash32: parsed.meta.hash32, seedIndices: parsed.meta.seedIndices }
+    const meta: PtabMeta = {
+      L: parsed.meta.L,
+      N: parsed.meta.N,
+      M: parsed.meta.M,
+      hash32: parsed.meta.hash32,
+      seedIndices: parsed.meta.seedIndices,
+    }
     const table: PtabTable = { meta, planes: new Map() }
-    const st = stateFor(length)
+    const st = stateFor(length, datasetId)
     st.bigMatrix = parsed.bigMatrix
     return table
   }
@@ -90,8 +143,9 @@ export function createPatternProvider(opts?: ProviderOpts): PatternProvider {
     length: number,
     words: string[],
     onProgress?: (stage: string, percent: number) => void,
+    datasetId?: string,
   ): Promise<PtabMeta | null> {
-    const st = stateFor(length)
+    const st = stateFor(length, datasetId)
     if (st.assetLoaded && st.table) return st.table.meta
     if (st.assetIgnored) return null
     // Compute hash of current word ordering
@@ -100,7 +154,7 @@ export function createPatternProvider(opts?: ProviderOpts): PatternProvider {
     st.wordsHash = hash32
     // Try fetch asset
     onProgress?.('download', 0)
-    const buf = await fetchAsset(length)
+    const buf = await fetchAsset(length, datasetId)
     onProgress?.('download', 1)
     if (!buf) {
       st.assetIgnored = true
@@ -110,7 +164,7 @@ export function createPatternProvider(opts?: ProviderOpts): PatternProvider {
       return null
     }
     onProgress?.('verify', 0.2)
-    const table = parseBinary(buf, words, length, hash32)
+    const table = parseBinary(buf, words, length, hash32, datasetId)
     if (!table) {
       st.assetIgnored = true
       onProgress?.('verify', 1)
@@ -137,9 +191,14 @@ export function createPatternProvider(opts?: ProviderOpts): PatternProvider {
     return null
   }
 
-  async function getPatterns(length: number, words: string[], guess: string): Promise<Uint16Array> {
-    await ensureForLength(length, words)
-    const st = stateFor(length)
+  async function getPatterns(
+    length: number,
+    words: string[],
+    guess: string,
+    datasetId?: string,
+  ): Promise<Uint16Array> {
+    await ensureForLength(length, words, undefined, datasetId)
+    const st = stateFor(length, datasetId)
     // build word index if missing
     if (!st.wordIndex) {
       const wmap = new Map<string, number>()
@@ -152,7 +211,7 @@ export function createPatternProvider(opts?: ProviderOpts): PatternProvider {
     if (st.table && st.bigMatrix) {
       const rowIdx = findSeedRow(st.table.meta, idx)
       if (rowIdx != null) {
-  const { N } = st.table.meta
+        const { N } = st.table.meta
         // lazily return subarray view; also memoize in planes map
         const start = rowIdx * N
         const view = st.bigMatrix.subarray(start, start + N)
@@ -161,11 +220,11 @@ export function createPatternProvider(opts?: ProviderOpts): PatternProvider {
       }
     }
     // Fallback: check in-memory LRU
-    const cacheKey = `${length}:${guess}`
+    const cacheKey = `${dsKey(length, datasetId)}:${guess}`
     const lruBuf = lru.get(cacheKey)
     if (lruBuf) return new Uint16Array(lruBuf)
     // Check IndexedDB
-    const idbBuf = await getPtab(length, guess)
+    const idbBuf = await getPtab(length, guess, datasetId)
     if (idbBuf) {
       lru.set(cacheKey, idbBuf)
       return new Uint16Array(idbBuf)
@@ -183,7 +242,7 @@ export function createPatternProvider(opts?: ProviderOpts): PatternProvider {
         // Persist
         const buf = arr.buffer.slice(0) // clone to detach from potential views
         lru.set(cacheKey, buf)
-        await setPtab(length, guess, buf)
+        await setPtab(length, guess, buf, datasetId)
         return arr
       })()
       pendingComputes.set(cacheKey, pending)
@@ -203,19 +262,22 @@ export function createPatternProvider(opts?: ProviderOpts): PatternProvider {
     // Do not drop precomputed assets, only volatile cache
   }
 
-  function statsForLength(length: number): { memorySeedPlanes: number; memoryFallback: number } {
-    const st = lengthStates.get(length)
+  function statsForLength(
+    length: number,
+    datasetId?: string,
+  ): { memorySeedPlanes: number; memoryFallback: number } {
+    const st = lengthStates.get(dsKey(length, datasetId))
     const memorySeedPlanes = st?.table?.planes.size || 0
-    const prefix = `${length}:`
+    const prefix = `${dsKey(length, datasetId)}:`
     let memoryFallback = 0
     for (const k of lru.keys()) if (k.startsWith(prefix)) memoryFallback++
     return { memorySeedPlanes, memoryFallback }
   }
 
-  function clearFallbackForLength(length: number) {
-    const prefix = `${length}:`
+  function clearFallbackForLength(length: number, datasetId?: string) {
+    const prefix = `${dsKey(length, datasetId)}:`
     for (const k of lru.keys()) if (k.startsWith(prefix)) lru.delete(k)
-    const st = lengthStates.get(length)
+    const st = lengthStates.get(dsKey(length, datasetId))
     // Also clear accessed seed planes map to allow re-slicing lazily (doesn't refetch asset)
     if (st?.table) st.table.planes.clear()
   }

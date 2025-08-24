@@ -13,15 +13,19 @@ export type Policy = 'composite' | 'pure-eig' | 'pure-solve' | 'unique-letters'
 
 /** Data passed from the main thread */
 export interface WorkerInput {
+  datasetId: string
   length: number
   policy: Policy
   trials: number
   attempts: number
   seed: number // base seed for deterministic RNG
+  wordsFile: string
+  priorsFile: string
 }
 
 /** Aggregate statistics returned to the parent */
 export interface ShardResult {
+  datasetId: string
   length: number
   policy: Policy
   trials: number
@@ -47,10 +51,10 @@ function makeRng(seed: number) {
 }
 
 // ---- Load wordlist + priors for given length ----
-function loadPriorData(length: number): PriorData {
+function loadPriorData(wordsFile: string, priorsFile: string): PriorData {
   const root = process.cwd()
-  const wordsPath = path.resolve(root, 'public', 'wordlists', 'en', `en-${length}.txt`)
-  const priorsPath = path.resolve(root, 'public', 'wordlists', 'en', `en-${length}-priors.json`)
+  const wordsPath = path.resolve(root, 'public', 'wordlists', 'en', wordsFile)
+  const priorsPath = path.resolve(root, 'public', 'wordlists', 'en', priorsFile)
   if (!fs.existsSync(wordsPath)) throw new Error(`Wordlist not found: ${wordsPath}`)
   if (!fs.existsSync(priorsPath)) throw new Error(`Priors not found: ${priorsPath}`)
   const wordsRaw = fs.readFileSync(wordsPath, 'utf8').split(/\r?\n/).filter(Boolean)
@@ -133,14 +137,30 @@ function pickGuess(
       return (
         suggestNext(
           { words, priors },
-          { attemptsLeft, attemptsMax, topK: 1, sampleCutoff: 5000, sampleSize: 3000, tau: null, alphaOverride: 1 },
+          {
+            attemptsLeft,
+            attemptsMax,
+            topK: 1,
+            sampleCutoff: 5000,
+            sampleSize: 3000,
+            tau: null,
+            alphaOverride: 1,
+          },
         )[0]?.guess || words[0]!
       )
     case 'pure-solve':
       return (
         suggestNext(
           { words, priors },
-          { attemptsLeft, attemptsMax, topK: 1, sampleCutoff: 5000, sampleSize: 3000, tau: null, alphaOverride: 0 },
+          {
+            attemptsLeft,
+            attemptsMax,
+            topK: 1,
+            sampleCutoff: 5000,
+            sampleSize: 3000,
+            tau: null,
+            alphaOverride: 0,
+          },
         )[0]?.guess || words[0]!
       )
     case 'unique-letters':
@@ -165,7 +185,7 @@ function patternAllGreen(pat: ReturnType<typeof encodeTrits>, length: number): b
 }
 
 function runTrials(input: WorkerInput): ShardResult {
-  const prior = loadPriorData(input.length)
+  const prior = loadPriorData(input.wordsFile, input.priorsFile)
   const rng = makeRng(input.seed)
   const attemptsMax = input.attempts
   const attemptHist = new Array<number>(attemptsMax + 1).fill(0) // last index for fails
@@ -212,6 +232,7 @@ function runTrials(input: WorkerInput): ShardResult {
   }
 
   return {
+    datasetId: input.datasetId,
     length: input.length,
     policy: input.policy,
     trials: input.trials,

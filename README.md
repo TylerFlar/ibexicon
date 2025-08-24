@@ -35,64 +35,45 @@ Planned outputs (future work) will appear in `eval/results/` as timestamped JSON
 
 ---
 
-## Wordlists from en-full.txt
-
-Generates per-length English word lists and Empirical Bayes (EB) prior probability files from a single corpus file via a streaming builder.
-
-### 1. Provide the source corpus
-
-Place the source file at `data/en-full.txt` with lines in the form:
-
-```
-you 22484400
 i 19975318
 the 17594291
-```
 
-Each line is: `<word><whitespace><count>` (counts are positive integers). Lines beginning with `#` or blank lines are ignored.
+## Dataset Automation (Unified Flow)
 
-### 2. Install (dev) dependencies
+The legacy one-corpus builder and EB prior pipeline have been replaced by a single unified script that ingests any new word list, fetches Datamuse frequencies, creates priors, updates the manifest, and (optionally) builds the pattern table.
 
-The build script relies on Commander, Zod, Chalk, and Rimraf (added as dev dependencies). If you haven't already:
+### Add a new dataset
 
-```bash
-npm install
-```
-
-### 3. Generate wordlists & priors
-
-Run:
+1. Create/obtain a text file with one lowercase word per line (uniform length).
+2. Run the automation script:
 
 ```bash
-npm run build:data
+npm run add:dataset -- --id=mylist-5 --words=public/wordlists/en/mylist-5.txt --category="Custom" --displayName="My List 5"
 ```
 
-This reads `data/en-full.txt` and produces, for every observed word length `L`:
+Flags (selected):
 
-- `public/wordlists/en/en-<L>.txt` – one word per line, sorted by descending raw frequency then ascending lexicographic word for ties.
-- `public/wordlists/en/en-<L>-priors.json` – EB-smoothed prior probabilities using a letter-position model blended with counts.
-- `public/wordlists/en/manifest.json` – metadata listing lengths, vocab sizes, token totals, and build parameters.
+- `--id` unique dataset id (used in asset names e.g. `ptab-<id>.bin`).
+- `--words` path to word list file.
+- `--category` UI grouping label.
+- `--displayName` human label shown in selector (defaults to id if omitted).
+- `--priorsOut` override priors output file (auto-derives if omitted).
+- `--concurrency` Datamuse fetch parallelism (default 8).
+- `--delay` ms delay between each fetch per worker (default 80) to stay polite.
+- `--addK` additive smoothing constant (default 0.5).
+- `--fallbackScale` scale applied to min observed count for missing freq (default 0.1).
+- `--seeds` number of seed rows for pattern table (default 1500).
+- `--skipPtab` skip building the pattern table.
+- `--forcePriors` overwrite an existing priors file.
 
-All lengths are discovered dynamically; there is no hard-coded length limit.
+The script will:
 
-### 4. EB Prior (conceptual overview)
+1. Fetch / cache Datamuse frequencies (resumable via `.cache.json`).
+2. Produce normalized priors JSON.
+3. Insert or update the entry in `public/wordlists/en/manifest.json`.
+4. Build `public/wordlists/en/ptab-<id>.bin` unless `--skipPtab` is set.
 
-The EB prior blends empirical word frequency with a letter-position model. Parameters (CLI flags, defaults shown):
-
-- `--alpha <0.5>`: Laplace/Jeffreys smoothing per letter-position.
-- `--muFactorShort <0.05>`: μ = muFactorShort·N for lengths ≤ `--longThreshold`.
-- `--muFactorLong <0.10>`: μ = muFactorLong·N for lengths > `--longThreshold`.
-- `--longThreshold <8>`: boundary between short and long lengths.
-- `--tau <1.0>`: temperature; if ≠ 1, probabilities are reweighted by P^(1/τ) and renormalized.
-- `--exclude-lengths <csv>`: optionally skip specific lengths.
-
-Formula:
-
-```
-P(word) = (freq(word) + μ * P_pos(word)) / (N + μ)
-```
-
-`P_pos(word)` multiplies per-position probabilities built from smoothed letter counts and is normalized across all words of length L before blending. Temperature (τ) adjusts sharpness after EB.
+Legacy builder docs below are retained for historical context but are no longer part of the active workflow.
 
 ---
 
@@ -180,7 +161,7 @@ Integration tests exercise scoring & cancellation. In the jsdom test environment
 Hot seed guess × secret feedback patterns can be precomputed for shorter lengths (defaults: L ≤ 10, N ≤ 20k, top M = 1500 seeds) to accelerate early scoring. A binary asset per length is written to:
 
 ```
-public/wordlists/en/ibxptab-<L>.bin
+public/wordlists/en/ptab-<datasetId>.bin
 ```
 
 Binary format (little-endian):
@@ -204,7 +185,7 @@ Seed selection heuristic (documented for reproducibility):
 1. Rank all words by prior probability descending (tie → lexicographic). Rank r ∈ [0, N-1].
 2. priorRankScore = (N − 1 − r)/(N − 1) (best prior → 1).
 3. uniqueLettersScore = (# distinct letters)/L.
-4. seedScore = 0.7 * priorRankScore + 0.3 * uniqueLettersScore.
+4. seedScore = 0.7 _ priorRankScore + 0.3 _ uniqueLettersScore.
 5. Keep the top M by (seedScore desc, word asc) — default M = 1500.
 
 ### Build the tables
@@ -230,7 +211,7 @@ Lengths with N > maxWords or L > maxLen (or > 10 which breaks the 16‑bit patte
 
 ### Consumption (planned)
 
-The solver worker will (future work) attempt to fetch `ibxptab-<L>.bin`, validate the hash against the current word list ordering, then reuse precomputed pattern rows with fallback to on‑demand computation + IndexedDB + in‑memory LRU cache.
+The solver worker fetches `ptab-<datasetId>.bin` (with legacy fallback) and validates the hash against the current word list ordering, then reuses precomputed pattern rows with fallback to on‑demand computation + IndexedDB + in‑memory LRU cache.
 
 ---
 

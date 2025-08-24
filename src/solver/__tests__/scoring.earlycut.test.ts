@@ -15,26 +15,32 @@ function buildSet(n: number): { words: string[]; priors: Record<string, number> 
 describe('early-cut invariants', () => {
   it('top-1 suggestion stable with and without earlyCut and some guesses abort', async () => {
     const { words, priors } = buildSet(80)
-    const base = suggestNext({ words, priors }, {
-      attemptsLeft: 6,
-      attemptsMax: 6,
-      topK: 1,
-      chunkSize: 5,
-    })
+    const base = suggestNext(
+      { words, priors },
+      {
+        attemptsLeft: 6,
+        attemptsMax: 6,
+        topK: 1,
+        chunkSize: 5,
+      },
+    )
     const aborted: string[] = []
     const guessesVisited: Record<string, number> = {}
-    const withCut = await suggestNextWithProvider({ words, priors }, {
-      attemptsLeft: 6,
-      attemptsMax: 6,
-      topK: 1,
-      chunkSize: 5,
-      earlyCut: true,
-      epsilon: 1e-6,
-      onGuessDone: ({ guess, abortedEarly, secretsVisited }) => {
-        guessesVisited[guess] = secretsVisited
-        if (abortedEarly) aborted.push(guess)
+    const withCut = await suggestNextWithProvider(
+      { words, priors },
+      {
+        attemptsLeft: 6,
+        attemptsMax: 6,
+        topK: 1,
+        chunkSize: 5,
+        earlyCut: true,
+        epsilon: 1e-6,
+        onGuessDone: ({ guess, abortedEarly, secretsVisited }) => {
+          guessesVisited[guess] = secretsVisited
+          if (abortedEarly) aborted.push(guess)
+        },
       },
-    })
+    )
     expect(withCut[0]!.guess).toBe(base[0]!.guess)
     // Ensure at least one guess aborted early (heuristic expectation)
     expect(aborted.length).toBeGreaterThan(0)

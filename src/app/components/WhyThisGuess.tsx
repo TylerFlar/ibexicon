@@ -65,14 +65,12 @@ export const WhyThisGuess: React.FC<WhyThisGuessProps> = ({ guess, words, priors
 
   const topPatterns: PatternRow[] = useMemo(() => {
     if (!data) return []
-    return data.splits
-      .slice(0, 6)
-      .map((s) => ({
-        pattern: s.pattern,
-        patternStr: patternToString(s.pattern),
-        prob: s.prob,
-        bucketCount: s.bucketCount,
-      }))
+    return data.splits.slice(0, 6).map((s) => ({
+      pattern: s.pattern,
+      patternStr: patternToString(s.pattern),
+      prob: s.prob,
+      bucketCount: s.bucketCount,
+    }))
   }, [data, patternToString])
 
   const sumBucketCounts = useMemo(

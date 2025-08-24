@@ -3,7 +3,11 @@ import { feedbackPattern } from '../../src/solver/feedback.ts'
 import { fnv1a32 } from './fnv1a.js'
 import * as fs from 'node:fs'
 
-export interface SeedInfo { word: string; index: number; seedScore: number }
+export interface SeedInfo {
+  word: string
+  index: number
+  seedScore: number
+}
 
 export function pickSeeds(
   words: string[],
@@ -12,7 +16,10 @@ export function pickSeeds(
   M: number,
 ): SeedInfo[] {
   const N = words.length
-  const withPrior: { word: string; prior: number }[] = words.map((w) => ({ word: w, prior: priors[w] ?? 0 }))
+  const withPrior: { word: string; prior: number }[] = words.map((w) => ({
+    word: w,
+    prior: priors[w] ?? 0,
+  }))
   withPrior.sort((a, b) => (b.prior !== a.prior ? b.prior - a.prior : a.word.localeCompare(b.word)))
   const rankMap = new Map<string, number>()
   for (let i = 0; i < withPrior.length; i++) rankMap.set(withPrior[i]!.word, i)
@@ -25,7 +32,9 @@ export function pickSeeds(
     const seedScore = 0.7 * priorRankScore + 0.3 * uniqueLettersScore
     return { word: w, index: idx, seedScore }
   })
-  seeds.sort((a, b) => (b.seedScore !== a.seedScore ? b.seedScore - a.seedScore : a.word.localeCompare(b.word)))
+  seeds.sort((a, b) =>
+    b.seedScore !== a.seedScore ? b.seedScore - a.seedScore : a.word.localeCompare(b.word),
+  )
   return seeds.slice(0, Math.min(M, seeds.length))
 }
 
@@ -64,14 +73,24 @@ export function writeBinary(
   const buf = Buffer.allocUnsafe(size)
   let off = 0
   const MAGIC = 0x49585054
-  buf.writeUInt32LE(MAGIC, off); off += 4
-  buf.writeUInt16LE(1, off); off += 2
-  buf.writeUInt8(L, off); off += 1
-  buf.writeUInt8(0, off); off += 1
-  buf.writeUInt32LE(N >>> 0, off); off += 4
-  buf.writeUInt32LE(hash32 >>> 0, off); off += 4
-  buf.writeUInt32LE(M >>> 0, off); off += 4
-  for (let i = 0; i < M; i++) { buf.writeUInt32LE(seeds[i]!.index >>> 0, off); off += 4 }
+  buf.writeUInt32LE(MAGIC, off)
+  off += 4
+  buf.writeUInt16LE(1, off)
+  off += 2
+  buf.writeUInt8(L, off)
+  off += 1
+  buf.writeUInt8(0, off)
+  off += 1
+  buf.writeUInt32LE(N >>> 0, off)
+  off += 4
+  buf.writeUInt32LE(hash32 >>> 0, off)
+  off += 4
+  buf.writeUInt32LE(M >>> 0, off)
+  off += 4
+  for (let i = 0; i < M; i++) {
+    buf.writeUInt32LE(seeds[i]!.index >>> 0, off)
+    off += 4
+  }
   const patBytes = Buffer.from(patterns.buffer, patterns.byteOffset, patterns.byteLength)
   patBytes.copy(buf, off)
   fs.writeFileSync(outPath, buf)

@@ -16,7 +16,7 @@ export function WordlistDebug() {
 
   useEffect(() => {
     ;(async () => {
-  const m = await loadManifest()
+      const m = await loadManifest()
       setLengths(m.lengths || [])
       setMeta(m.meta || null)
     })()

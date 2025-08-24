@@ -170,7 +170,9 @@ export function DebugPage() {
           </div>
         </section>
       </div>
-      <div className="mt-auto text-[10px] text-neutral-400">Secret debug page – not linked in UI.</div>
+      <div className="mt-auto text-[10px] text-neutral-400">
+        Secret debug page – not linked in UI.
+      </div>
     </div>
   )
 }

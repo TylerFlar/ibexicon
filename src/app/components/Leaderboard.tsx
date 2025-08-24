@@ -170,7 +170,7 @@ export default function Leaderboard() {
         const text = String(reader.result)
         if (f.name.endsWith('.json')) {
           const json = JSON.parse(text)
-            ;(json as any).rows ||= rowsFromJson(json) // ensure .rows populated
+          ;(json as any).rows ||= rowsFromJson(json) // ensure .rows populated
           const rows = rowsFromJson(json)
           setData({ source: 'uploaded-json', rows, json, csvText: undefined })
         } else {
@@ -268,7 +268,10 @@ export default function Leaderboard() {
                   </thead>
                   <tbody>
                     {rows.map((r) => (
-                      <tr key={policy + '-' + r.length} className="odd:bg-white even:bg-neutral-50 dark:odd:bg-neutral-900 dark:even:bg-neutral-800">
+                      <tr
+                        key={policy + '-' + r.length}
+                        className="odd:bg-white even:bg-neutral-50 dark:odd:bg-neutral-900 dark:even:bg-neutral-800"
+                      >
                         <td className="p-1">{r.length}</td>
                         <td className="p-1">{r.trials}</td>
                         <td className="p-1">{r.solvedPct.toFixed(2)}</td>

@@ -12,6 +12,7 @@ import {
 export interface UseSessionResult extends SessionState {
   dispatch: React.Dispatch<Action>
   setLength(length: number): void
+  setDataset(id: string, length: number): void
   setGuessInput(value: string): void
   addGuess(guess: string, trits: Trit[]): void
   editTrit(row: number, col: number, value: Trit): void
@@ -31,6 +32,10 @@ export function useSession(): UseSessionResult {
 
   // Action helpers
   const setLength = useCallback((length: number) => dispatch({ type: 'setLength', length }), [])
+  const setDataset = useCallback(
+    (id: string, length: number) => dispatch({ type: 'setDataset', id, length }),
+    [],
+  )
   const setGuessInput = useCallback(
     (value: string) => dispatch({ type: 'setGuessInput', value }),
     [],
@@ -56,6 +61,7 @@ export function useSession(): UseSessionResult {
     ...state,
     dispatch,
     setLength,
+    setDataset,
     setGuessInput,
     addGuess,
     editTrit,

@@ -41,8 +41,10 @@ describe('App', () => {
 
     render(<App />)
     expect(screen.getByText(/Ibexicon/i)).toBeInTheDocument()
-    // length select option appears after async manifest load
-    const lengthSelect = await screen.findByLabelText('Word length')
-    expect(lengthSelect).toBeInTheDocument()
+    // dataset selector (Category) appears after async manifest load
+    const categorySelect = await screen.findByLabelText('Category')
+    expect(categorySelect).toBeInTheDocument()
+    // Ensure the list dropdown shows the derived length label
+    expect(await screen.findByText(/List\s*\(L=5\)/)).toBeInTheDocument()
   })
 })

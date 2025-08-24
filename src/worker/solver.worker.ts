@@ -6,11 +6,19 @@ import { countPtabForLength, deletePtabForLength } from './idb'
 
 // Message definitions (incoming)
 export type Msg =
-  | { id: number; type: 'warmup'; payload?: { length?: number; words?: string[] } }
-  | { id: number; type: 'ptab:ensure'; payload: { length: number; words: string[] } }
-  | { id: number; type: 'ptab:stats'; payload: { length: number } }
-  | { id: number; type: 'ptab:clearMemory'; payload: { length: number } }
-  | { id: number; type: 'ptab:clearIDB'; payload: { length: number } }
+  | {
+      id: number
+      type: 'warmup'
+      payload?: { length?: number; words?: string[]; datasetId?: string }
+    }
+  | {
+      id: number
+      type: 'ptab:ensure'
+      payload: { length: number; words: string[]; datasetId?: string }
+    }
+  | { id: number; type: 'ptab:stats'; payload: { length: number; datasetId?: string } }
+  | { id: number; type: 'ptab:clearMemory'; payload: { length: number; datasetId?: string } }
+  | { id: number; type: 'ptab:clearIDB'; payload: { length: number; datasetId?: string } }
   | {
       id: number
       type: 'score'
@@ -54,7 +62,16 @@ export type OutMsg =
   | { id: number; type: 'warmup:ok' }
   | { id: number; type: 'ptab:progress'; stage: string; percent: number }
   | { id: number; type: 'ptab:ready'; meta: { L: number; N: number; M: number; hash32: number } }
-  | { id: number; type: 'ptab:stats:result'; stats: { length: number; memorySeedPlanes: number; memoryFallback: number; idbEntries: number } }
+  | {
+      id: number
+      type: 'ptab:stats:result'
+      stats: {
+        length: number
+        memorySeedPlanes: number
+        memoryFallback: number
+        idbEntries: number
+      }
+    }
   | { id: number; type: 'progress'; p: number }
   | { id: number; type: 'result'; suggestions: unknown }
   | { id: number; type: 'analyze:heatmap:result'; result: unknown }
@@ -111,7 +128,9 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
           // Preload pattern asset (non-blocking but awaited here for determinism)
           try {
             await patternProvider.ensureForLength(msg.payload.length, msg.payload.words)
-          } catch {/* ignore */}
+          } catch {
+            /* ignore */
+          }
         }
         const out: OutMsg = { id: msg.id, type: 'warmup:ok' }
         ;(self as unknown as Worker).postMessage(out)
@@ -126,38 +145,54 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
       return
     }
     case 'ptab:ensure': {
-      const { length, words } = msg.payload
+      const { length, words, datasetId } = msg.payload
       try {
-        const meta = await patternProvider.ensureForLength(length, words, (stage, percent) => {
-          const out: OutMsg = { id: msg.id, type: 'ptab:progress', stage, percent }
-          ;(self as unknown as Worker).postMessage(out)
-        })
+        const meta = await patternProvider.ensureForLength(
+          length,
+          words,
+          (stage, percent) => {
+            const out: OutMsg = { id: msg.id, type: 'ptab:progress', stage, percent }
+            ;(self as unknown as Worker).postMessage(out)
+          },
+          datasetId,
+        )
         const out: OutMsg = {
           id: msg.id,
-            type: 'ptab:ready',
-            meta: meta ? meta : { L: length, N: words.length, M: 0, hash32: 0 },
+          type: 'ptab:ready',
+          meta: meta ? meta : { L: length, N: words.length, M: 0, hash32: 0 },
         }
         ;(self as unknown as Worker).postMessage(out)
       } catch (err) {
-        const error = err instanceof Error ? { message: err.message, stack: err.stack } : { message: String(err) }
+        const error =
+          err instanceof Error
+            ? { message: err.message, stack: err.stack }
+            : { message: String(err) }
         const out: OutMsg = { id: msg.id, type: 'error', error }
         ;(self as unknown as Worker).postMessage(out)
       }
       return
     }
     case 'ptab:stats': {
-      const { length } = msg.payload
+      const { length, datasetId } = msg.payload
       try {
-        const statsMem = patternProvider.statsForLength(length)
-        const idbEntries = await countPtabForLength(length)
+        const statsMem = patternProvider.statsForLength(length, datasetId)
+        const idbEntries = await countPtabForLength(length, datasetId)
         const out: OutMsg = {
           id: msg.id,
           type: 'ptab:stats:result',
-          stats: { length, memorySeedPlanes: statsMem.memorySeedPlanes, memoryFallback: statsMem.memoryFallback, idbEntries },
+          stats: {
+            length,
+            memorySeedPlanes: statsMem.memorySeedPlanes,
+            memoryFallback: statsMem.memoryFallback,
+            idbEntries,
+          },
         }
         ;(self as unknown as Worker).postMessage(out)
       } catch (err) {
-        const error = err instanceof Error ? { message: err.message, stack: err.stack } : { message: String(err) }
+        const error =
+          err instanceof Error
+            ? { message: err.message, stack: err.stack }
+            : { message: String(err) }
         const out: OutMsg = { id: msg.id, type: 'error', error }
         ;(self as unknown as Worker).postMessage(out)
       }
@@ -165,11 +200,23 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
     }
     case 'ptab:clearMemory': {
       try {
-        patternProvider.clearFallbackForLength(msg.payload.length)
-        const out: OutMsg = { id: msg.id, type: 'ptab:stats:result', stats: { length: msg.payload.length, memorySeedPlanes: 0, memoryFallback: 0, idbEntries: 0 } }
+        patternProvider.clearFallbackForLength(msg.payload.length, msg.payload.datasetId)
+        const out: OutMsg = {
+          id: msg.id,
+          type: 'ptab:stats:result',
+          stats: {
+            length: msg.payload.length,
+            memorySeedPlanes: 0,
+            memoryFallback: 0,
+            idbEntries: 0,
+          },
+        }
         ;(self as unknown as Worker).postMessage(out)
       } catch (err) {
-        const error = err instanceof Error ? { message: err.message, stack: err.stack } : { message: String(err) }
+        const error =
+          err instanceof Error
+            ? { message: err.message, stack: err.stack }
+            : { message: String(err) }
         const out: OutMsg = { id: msg.id, type: 'error', error }
         ;(self as unknown as Worker).postMessage(out)
       }
@@ -177,12 +224,24 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
     }
     case 'ptab:clearIDB': {
       try {
-        await deletePtabForLength(msg.payload.length)
-        const statsMem = patternProvider.statsForLength(msg.payload.length)
-        const out: OutMsg = { id: msg.id, type: 'ptab:stats:result', stats: { length: msg.payload.length, memorySeedPlanes: statsMem.memorySeedPlanes, memoryFallback: statsMem.memoryFallback, idbEntries: 0 } }
+        await deletePtabForLength(msg.payload.length, msg.payload.datasetId)
+        const statsMem = patternProvider.statsForLength(msg.payload.length, msg.payload.datasetId)
+        const out: OutMsg = {
+          id: msg.id,
+          type: 'ptab:stats:result',
+          stats: {
+            length: msg.payload.length,
+            memorySeedPlanes: statsMem.memorySeedPlanes,
+            memoryFallback: statsMem.memoryFallback,
+            idbEntries: 0,
+          },
+        }
         ;(self as unknown as Worker).postMessage(out)
       } catch (err) {
-        const error = err instanceof Error ? { message: err.message, stack: err.stack } : { message: String(err) }
+        const error =
+          err instanceof Error
+            ? { message: err.message, stack: err.stack }
+            : { message: String(err) }
         const out: OutMsg = { id: msg.id, type: 'error', error }
         ;(self as unknown as Worker).postMessage(out)
       }
@@ -208,7 +267,16 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
       try {
         const priorsRecord = normalizePriors(priors)
         // Ensure potential asset present
-        try { await patternProvider.ensureForLength(words[0]?.length || 0, words) } catch {/* ignore */}
+        try {
+          await patternProvider.ensureForLength(
+            words[0]?.length || 0,
+            words,
+            undefined /* progress */,
+            undefined /* datasetId (future threading) */,
+          )
+        } catch {
+          /* ignore */
+        }
         const suggestions = await suggestNextWithProvider(
           { words, priors: priorsRecord },
           {
@@ -231,7 +299,12 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
             getPrecomputedPatterns: async (guess: string) => {
               try {
                 const L = words[0]?.length || 0
-                const arr = await patternProvider.getPatterns(L, words, guess)
+                const arr = await patternProvider.getPatterns(
+                  L,
+                  words,
+                  guess,
+                  undefined /* datasetId future */,
+                )
                 return arr
               } catch {
                 return null

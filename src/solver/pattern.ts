@@ -15,7 +15,7 @@ export function isNumericPattern(length: number): boolean {
  */
 export function encodeTrits(trits: number[]): PatternValue {
   const L = trits.length
-   
+
   if (isNumericPattern(L)) {
     let value = 0
     let mul = 1
@@ -34,7 +34,7 @@ export function encodeTrits(trits: number[]): PatternValue {
 /** Decode a pattern value back into its trit array of given length */
 export function decodePattern(p: PatternValue, length: number): number[] {
   const out = new Array<number>(length)
-   
+
   if (isNumericPattern(length)) {
     let v: number
     if (typeof p === 'number') {

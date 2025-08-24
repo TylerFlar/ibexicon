@@ -7,7 +7,12 @@ interface Props {
 }
 
 export function CacheDebug({ client, length }: Props) {
-  const [stats, setStats] = useState<{ length: number; memorySeedPlanes: number; memoryFallback: number; idbEntries: number } | null>(null)
+  const [stats, setStats] = useState<{
+    length: number
+    memorySeedPlanes: number
+    memoryFallback: number
+    idbEntries: number
+  } | null>(null)
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
 

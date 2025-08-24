@@ -2,9 +2,9 @@ name: Eval Smoke
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 concurrency:
   group: eval-smoke-${{ github.ref }}

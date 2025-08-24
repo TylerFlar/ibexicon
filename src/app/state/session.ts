@@ -13,6 +13,7 @@ export interface Settings {
   length: number
   attemptsMax: number
   colorblind: boolean
+  datasetId?: string // id of the currently selected wordlist set (implies length)
 }
 
 export interface SessionState {
@@ -23,6 +24,7 @@ export interface SessionState {
 
 export type Action =
   | { type: 'setLength'; length: number }
+  | { type: 'setDataset'; id: string; length: number }
   | { type: 'setGuessInput'; value: string }
   | { type: 'addGuess'; payload: { guess: string; trits: Trit[] } }
   | { type: 'editTrit'; payload: { row: number; col: number; value: Trit } }
@@ -37,6 +39,7 @@ export function initialState(length: number): SessionState {
       length,
       attemptsMax: 10,
       colorblind: false,
+      datasetId: `en-${length}`,
     },
     history: [],
     guessInput: '',
@@ -56,7 +59,22 @@ export function reducer(state: SessionState, action: Action): SessionState {
       if (length === state.settings.length) return state
       // Changing length invalidates existing guesses; clear history per assumption.
       return {
-        settings: { ...state.settings, length },
+        settings: {
+          ...state.settings,
+          length,
+          datasetId: state.settings.datasetId?.endsWith(String(length))
+            ? state.settings.datasetId
+            : `en-${length}`,
+        },
+        history: [],
+        guessInput: '',
+      }
+    }
+    case 'setDataset': {
+      const { id, length } = action
+      if (state.settings.datasetId === id) return state
+      return {
+        settings: { ...state.settings, datasetId: id, length },
         history: [],
         guessInput: '',
       }
@@ -130,6 +148,7 @@ function isValidPersist(obj: any): obj is SessionState {
     typeof settings.length !== 'number' ||
     typeof settings.attemptsMax !== 'number' ||
     typeof settings.colorblind !== 'boolean' ||
+    (settings.datasetId && typeof settings.datasetId !== 'string') ||
     false
   )
     return false

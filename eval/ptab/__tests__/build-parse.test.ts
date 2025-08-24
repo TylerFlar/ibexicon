@@ -9,7 +9,9 @@ import { feedbackPattern } from '../../../src/solver/feedback'
 describe('ptab build + parse integration', () => {
   it('builds and parses a tiny L=3 asset correctly', () => {
     const words = ['aaa', 'aab', 'aba', 'baa', 'bbb', 'abc', 'cab', 'bca']
-    const priors: Record<string, number> = Object.fromEntries(words.map((w) => [w, 1 / words.length]))
+    const priors: Record<string, number> = Object.fromEntries(
+      words.map((w) => [w, 1 / words.length]),
+    )
     const L = 3
     const hash32 = hashWords(words)
     const seeds = pickSeeds(words, priors, L, 4) // choose top 4
@@ -18,7 +20,12 @@ describe('ptab build + parse integration', () => {
     const outPath = path.join(tmpDir, 'ibxptab-3.bin')
     writeBinary(outPath, L, words.length, M, hash32, seeds, patterns)
     const buf = fs.readFileSync(outPath)
-    const parsed = parsePtabBinary(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), words, L, hash32)
+    const parsed = parsePtabBinary(
+      buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength),
+      words,
+      L,
+      hash32,
+    )
     expect(parsed).not.toBeNull()
     if (!parsed) return
     expect(parsed.meta.L).toBe(L)

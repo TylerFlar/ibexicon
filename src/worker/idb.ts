@@ -42,10 +42,14 @@ async function withStore(mode: IDBMode): Promise<IDBObjectStore> {
   return db.transaction(STORE, mode).objectStore(STORE)
 }
 
-export async function getPtab(L: number, guess: string): Promise<ArrayBuffer | null> {
+export async function getPtab(
+  L: number,
+  guess: string,
+  datasetId?: string,
+): Promise<ArrayBuffer | null> {
   try {
     const store = await withStore('readonly')
-    const key = `${L}:${guess}`
+    const key = datasetId ? `${datasetId}|${L}:${guess}` : `${L}:${guess}`
     return await new Promise((resolve, reject) => {
       const req = store.get(key)
       req.onerror = () => reject(req.error)
@@ -56,10 +60,15 @@ export async function getPtab(L: number, guess: string): Promise<ArrayBuffer | n
   }
 }
 
-export async function setPtab(L: number, guess: string, buf: ArrayBuffer): Promise<void> {
+export async function setPtab(
+  L: number,
+  guess: string,
+  buf: ArrayBuffer,
+  datasetId?: string,
+): Promise<void> {
   try {
     const store = await withStore('readwrite')
-    const key = `${L}:${guess}`
+    const key = datasetId ? `${datasetId}|${L}:${guess}` : `${L}:${guess}`
     await new Promise<void>((resolve, reject) => {
       const req = store.put(buf, key)
       req.onerror = () => reject(req.error)
@@ -83,10 +92,10 @@ export async function clearStore(): Promise<void> {
   }
 }
 
-export async function countPtabForLength(L: number): Promise<number> {
+export async function countPtabForLength(L: number, datasetId?: string): Promise<number> {
   try {
     const store = await withStore('readonly')
-    const prefix = `${L}:`
+    const prefix = datasetId ? `${datasetId}|${L}:` : `${L}:`
     return await new Promise<number>((resolve, reject) => {
       let count = 0
       const req = store.openCursor()
@@ -103,10 +112,10 @@ export async function countPtabForLength(L: number): Promise<number> {
   }
 }
 
-export async function deletePtabForLength(L: number): Promise<void> {
+export async function deletePtabForLength(L: number, datasetId?: string): Promise<void> {
   try {
     const store = await withStore('readwrite')
-    const prefix = `${L}:`
+    const prefix = datasetId ? `${datasetId}|${L}:` : `${L}:`
     await new Promise<void>((resolve, reject) => {
       const req = store.openCursor()
       req.onerror = () => reject(req.error)

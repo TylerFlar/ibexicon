@@ -2,13 +2,8 @@
   "meta": {
     "timestamp": "2025-08-23T19:06:09.325Z",
     "gitSha": "c2d0912",
-    "lengths": [
-      4
-    ],
-    "policies": [
-      "composite",
-      "pure-eig"
-    ],
+    "lengths": [4],
+    "policies": ["composite", "pure-eig"],
     "trialsPerShard": 3,
     "attempts": 6,
     "concurrency": 2,

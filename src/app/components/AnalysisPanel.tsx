@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { loadWordlistSet } from '@/solver/data/loader'
+import { loadWordlistSet, loadWordlistSetById } from '@/solver/data/loader'
 import { buildCandidates } from '@/app/logic/constraints'
 import { useSession } from '@/app/hooks/useSession'
 import LetterHeatmap from './LetterHeatmap'
@@ -23,7 +23,7 @@ interface LoadedSet {
 
 export const AnalysisPanel: React.FC<{ colorblind?: boolean }> = ({ colorblind = false }) => {
   const session = useSession()
-  const length = session.settings.length
+  const { length, datasetId } = session.settings as any
   const history = session.history
   const [loaded, setLoaded] = useState<LoadedSet | null>(null)
   const [loading, setLoading] = useState(false)
@@ -33,27 +33,29 @@ export const AnalysisPanel: React.FC<{ colorblind?: boolean }> = ({ colorblind =
 
   // (Manifest lengths not needed here; could be used for UI selection elsewhere.)
 
-  // Load wordlist for current length
+  // Load wordlist for current dataset (fallback to length core list)
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setLoaded(null)
     setError(null)
-    loadWordlistSet(length)
-      .then((set) => {
+    const load = async () => {
+      try {
+        const set = datasetId ? await loadWordlistSetById(datasetId) : await loadWordlistSet(length)
         if (cancelled) return
         setLoaded({ length: set.length, words: set.words, priors: set.priors })
         setLoading(false)
-      })
-      .catch((e) => {
+      } catch (e: any) {
         if (cancelled) return
         setError(String(e))
         setLoading(false)
-      })
+      }
+    }
+    load()
     return () => {
       cancelled = true
     }
-  }, [length])
+  }, [length, datasetId])
 
   // Candidate set from history
   const candidateSet = useMemo(
@@ -134,8 +136,39 @@ export const AnalysisPanel: React.FC<{ colorblind?: boolean }> = ({ colorblind =
   }, [aliveWords, renormPriorsRecord])
 
   return (
-    <section className="analysis-section">
-      <h2 className="analysis-heading">Letter Position Heatmap</h2>
+    <section className="analysis-section space-y-3">
+      <div className="flex items-center gap-2">
+        <h2 className="analysis-heading text-lg font-semibold tracking-tight">Pattern Analysis</h2>
+        <span
+          className="text-[10px] px-2 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200"
+          title="Dataset / length currently analyzed"
+        >
+          {datasetId || `en-${length}`}
+        </span>
+      </div>
+      <details
+        className="rounded border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900/40 p-3 text-[11px] leading-relaxed"
+        open
+      >
+        <summary className="cursor-pointer font-medium mb-1">What am I looking at?</summary>
+        <ul className="list-disc pl-4 space-y-1">
+          <li>
+            <strong>Candidates</strong>: words still consistent with feedback you entered.
+          </li>
+          <li>
+            <strong>Entropy H(S)</strong>: how much uncertainty remains (in bits). 0 bits means one
+            certain word; ~n bits means about 2^n equally likely words.
+          </li>
+          <li>
+            <strong>Top letters per position</strong>: shows the most probable letter for each slot
+            under the current candidate distribution.
+          </li>
+          <li>
+            <strong>Heatmap</strong>: color / value encodes probability that a letter appears in a
+            given position across all alive candidates (renormalized priors).
+          </li>
+        </ul>
+      </details>
       {loading && <div className="analysis-loading">Loading wordlist…</div>}
       {error && <div className="analysis-error">Error: {error}</div>}
       {!loading && !error && (
@@ -150,9 +183,22 @@ export const AnalysisPanel: React.FC<{ colorblind?: boolean }> = ({ colorblind =
             <div>
               <strong>Entropy H(S):</strong> {H.toFixed(3)} bits
             </div>
-            <div>
-              <strong>Top letters:</strong>{' '}
-              {topLetters.map((t) => `${t.pos}:${t.letter}(${t.mass.toFixed(2)})`).join(' ')}
+            <div className="flex flex-col gap-1">
+              <strong>Top letters:</strong>
+              <div className="flex flex-wrap gap-1 text-[10px]">
+                {topLetters.map((t) => (
+                  <span
+                    key={t.pos}
+                    className="px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-100"
+                    title={`Position ${t.pos}: ${t.letter} has probability ${(t.mass * 100).toFixed(2)}%`}
+                  >
+                    {t.pos}:{t.letter}
+                    <span className="opacity-60 ml-0.5">
+                      {(t.mass * 100).toFixed(t.mass >= 0.1 ? 0 : 1)}%
+                    </span>
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
           {analyzing && <div className="analysis-analyzing">Analyzing…</div>}

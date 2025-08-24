@@ -1,27 +1,30 @@
 {
   "meta": {
-    "timestamp": "2025-08-23T20:20:04.823Z",
-    "gitSha": "35ebeac",
-    "lengths": [
-      5
+    "timestamp": "2025-08-24T02:23:36.824Z",
+    "gitSha": "7aea9c6",
+    "datasets": [
+      {
+        "id": "en-5",
+        "length": 5,
+        "category": "Core"
+      }
     ],
-    "policies": [
-      "composite"
-    ],
-    "trialsPerShard": 50,
+    "policies": ["composite"],
+    "trialsPerShard": 10,
     "attempts": 6,
-    "concurrency": 2,
-    "baseSeed": 1755980358657
+    "concurrency": 1,
+    "baseSeed": 1756002205842
   },
   "rows": [
     {
+      "datasetId": "en-5",
       "policy": "composite",
       "length": 5,
-      "trials": 50,
-      "solved": 50,
+      "trials": 10,
+      "solved": 10,
       "failRate": 0,
-      "avgAttempts": 2.86,
-      "avgTimeMs": 920.26,
+      "avgAttempts": 2.7,
+      "avgTimeMs": 1081.1,
       "avgFinalS_whenFailed": 0
     }
   ]

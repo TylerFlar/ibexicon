@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { encodeTrits, decodePattern, isNumericPattern, MAX_NUMERIC_TRITS, patternEquals } from '../pattern'
- 
+import {
+  encodeTrits,
+  decodePattern,
+  isNumericPattern,
+  MAX_NUMERIC_TRITS,
+  patternEquals,
+} from '../pattern'
 
 // Simple deterministic PRNG for reproducibility
 function mulberry32(seed: number) {

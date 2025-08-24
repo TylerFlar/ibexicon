@@ -12,12 +12,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "build:data": "node scripts/data/build-from-en-full.mjs",
     "clean:data": "rimraf public/wordlists/en/* || true",
-    "validate:data": "node scripts/data/validate.mjs",
     "eval:run": "tsx eval/sim/cli.ts",
     "eval:ci": "tsx eval/sim/cli.ts --lengths 5 --trials 50 --attempts 6 --policies composite --concurrency 2",
-    "build:ptab": "tsx eval/ptab/build.ts"
+    "build:ptab": "tsx eval/ptab/build.ts",
+    "add:dataset": "tsx scripts/add-dataset.ts"
   },
   "dependencies": {
     "react": "^19.1.1",
@@ -35,7 +34,6 @@
     "@vitejs/plugin-react": "^5.0.0",
     "@vitest/coverage-v8": "^3.2.4",
     "autoprefixer": "^10.4.21",
-    "chalk": "^5.6.0",
     "commander": "^14.0.0",
     "eslint": "^9.33.0",
     "eslint-config-prettier": "^10.1.8",
@@ -52,8 +50,7 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.40.0",
     "vite": "^7.1.2",
-    "vitest": "^3.2.4",
-    "zod": "^4.0.17"
+    "vitest": "^3.2.4"
   },
   "description": "Any-length Wordle solver with smart explore/exploit, deployable on GitHub Pages.",
   "license": "MIT"

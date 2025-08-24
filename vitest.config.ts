@@ -17,7 +17,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
     },
-  include: ['src/**/*.test.{ts,tsx}', 'eval/**/*.test.{ts,tsx}'],
+    include: ['src/**/*.test.{ts,tsx}', 'eval/**/*.test.{ts,tsx}'],
     globals: true,
   },
 })

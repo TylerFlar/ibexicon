@@ -173,7 +173,7 @@ export function suggestNext(input: ScoringInput, opts: ScoringOpts): Suggestion[
       ? Math.max(0, Math.min(1, opts.alphaOverride))
       : alphaFor(N, opts.attemptsLeft, opts.attemptsMax)
   const L = words[0]!.length
-   
+
   const numeric = isNumericPattern(L)
 
   const results: {
@@ -390,7 +390,13 @@ export async function suggestNextWithProvider(
   let processedChunks = 0
 
   let bestScoreSoFar = -Infinity
-  const results: { idx: number; eig: number; solveProb: number; expectedRemaining: number; score: number }[] = []
+  const results: {
+    idx: number
+    eig: number
+    solveProb: number
+    expectedRemaining: number
+    score: number
+  }[] = []
 
   for (const guessIdx of candidateIdxs) {
     if (checkCancel && checkCancel()) throw new CanceledError()
@@ -412,19 +418,19 @@ export async function suggestNextWithProvider(
       if (patterns) {
         for (let start = 0; start < N && !abortedEarly; start += chunkSize) {
           const end = Math.min(N, start + chunkSize)
-            ;(() => {
-              for (let si = start; si < end; si++) {
-                const code = patterns![si]!
-                const key = numeric ? String(code) : String(code)
-                let a = accum[key]
-                if (!a) a = accum[key] = { mass: 0, massLog: 0, count: 0 }
-                const w = p[si]!
-                a.mass += w
-                if (w > 0) a.massLog += w * Math.log2(w)
-                a.count++
-                secretsVisited++
-              }
-            })()
+          ;(() => {
+            for (let si = start; si < end; si++) {
+              const code = patterns![si]!
+              const key = numeric ? String(code) : String(code)
+              let a = accum[key]
+              if (!a) a = accum[key] = { mass: 0, massLog: 0, count: 0 }
+              const w = p[si]!
+              a.mass += w
+              if (w > 0) a.massLog += w * Math.log2(w)
+              a.count++
+              secretsVisited++
+            }
+          })()
           processedChunks++
           if (reportProgress) reportProgress(processedChunks / totalChunks)
           if (earlyCut) {
@@ -558,8 +564,8 @@ export async function suggestNextWithProvider(
         }
       }
     }
-  if (opts.onGuessDone) opts.onGuessDone({ guess, abortedEarly, secretsVisited })
-  if (abortedEarly) continue // skip final scoring for this guess
+    if (opts.onGuessDone) opts.onGuessDone({ guess, abortedEarly, secretsVisited })
+    if (abortedEarly) continue // skip final scoring for this guess
 
     // finalize for guess
     let sumHpost = 0

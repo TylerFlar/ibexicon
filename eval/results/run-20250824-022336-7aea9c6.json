@@ -1,0 +1,31 @@
+{
+  "meta": {
+    "timestamp": "2025-08-24T02:23:36.824Z",
+    "gitSha": "7aea9c6",
+    "datasets": [
+      {
+        "id": "en-5",
+        "length": 5,
+        "category": "Core"
+      }
+    ],
+    "policies": ["composite"],
+    "trialsPerShard": 10,
+    "attempts": 6,
+    "concurrency": 1,
+    "baseSeed": 1756002205842
+  },
+  "rows": [
+    {
+      "datasetId": "en-5",
+      "policy": "composite",
+      "length": 5,
+      "trials": 10,
+      "solved": 10,
+      "failRate": 0,
+      "avgAttempts": 2.7,
+      "avgTimeMs": 1081.1,
+      "avgFinalS_whenFailed": 0
+    }
+  ]
+}

@@ -4,7 +4,7 @@ import type { SessionState } from '@/app/state/session'
 import { SolverWorkerClient, type ScoreResult } from '@/worker/client'
 import { alphaFor } from '@/solver/scoring'
 import WhyThisGuess from '@/app/components/WhyThisGuess'
-import { loadWordlistSet } from '@/solver/data/loader'
+import { loadWordlistSet, loadWordlistSetById } from '@/solver/data/loader'
 import { useToasts } from '@/app/components/Toaster'
 // Simplified; WhatIf / preview removed
 
@@ -19,7 +19,7 @@ interface WordData {
 
 export function SuggestPanel({ session }: SuggestPanelProps) {
   const { history, settings } = session
-  const { length, attemptsMax } = settings
+  const { length, attemptsMax, datasetId } = settings as any
   const attemptsLeft = attemptsMax - history.length
   const { push } = useToasts()
 
@@ -35,7 +35,9 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
     setWordData(null)
     ;(async () => {
       try {
-        const data = await loadWordlistSet(length)
+        const data = datasetId
+          ? await loadWordlistSetById(datasetId)
+          : await loadWordlistSet(length)
         if (!cancelled) {
           setWordData({ words: data.words, priors: data.priors })
         }
@@ -48,7 +50,7 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
     return () => {
       cancelled = true
     }
-  }, [length])
+  }, [length, datasetId])
 
   const candidates = useMemo(() => {
     if (!wordData) return null
@@ -180,10 +182,30 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
           <table className="w-full text-xs border-collapse">
             <thead className="sticky top-0 bg-neutral-100 dark:bg-neutral-800">
               <tr>
-                <th className="text-left p-1 font-semibold">Guess</th>
-                <th className="text-right p-1 font-semibold">EIG</th>
-                <th className="text-right p-1 font-semibold">Solve%</th>
-                <th className="text-right p-1 font-semibold">Remain</th>
+                <th
+                  className="text-left p-1 font-semibold"
+                  title="Candidate word to consider guessing"
+                >
+                  Guess
+                </th>
+                <th
+                  className="text-right p-1 font-semibold cursor-help"
+                  title="EIG (Expected Information Gain, in bits). Higher means the guess is expected to reduce uncertainty more by splitting the remaining possibilities."
+                >
+                  EIG
+                </th>
+                <th
+                  className="text-right p-1 font-semibold cursor-help"
+                  title="Solve%: Prior probability this guess itself is the secret (renormalized over current candidates)."
+                >
+                  Solve%
+                </th>
+                <th
+                  className="text-right p-1 font-semibold cursor-help"
+                  title="Remain: Expected number of candidates left after applying the feedback from this guess. Lower is better."
+                >
+                  Remain
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -214,7 +236,14 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
                     </td>
                     <td className="p-1 text-right tabular-nums">{s.eig.toFixed(2)}</td>
                     <td className="p-1 text-right tabular-nums">
-                      {(s.solveProb * 100).toFixed(1)}
+                      {(() => {
+                        const pct = s.solveProb * 100
+                        if (pct >= 1) return pct.toFixed(1)
+                        if (pct >= 0.1) return pct.toFixed(2)
+                        if (pct >= 0.01) return pct.toFixed(2)
+                        if (pct === 0) return '0'
+                        return '<0.01'
+                      })()}
                     </td>
                     <td className="p-1 text-right tabular-nums">
                       {s.expectedRemaining.toFixed(1)}

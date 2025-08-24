@@ -52,7 +52,15 @@ interface PendingEntry<T = unknown> {
   reject: (error: unknown) => void
   onProgress?: ProgressHandler
   onPtabProgress?: (stage: string, percent: number) => void
-  kind: 'warmup' | 'score' | 'dispose' | 'analyze:heatmap' | 'analyze:guess' | 'ptab:ensure' | 'ptab:stats' | 'ptab:clear'
+  kind:
+    | 'warmup'
+    | 'score'
+    | 'dispose'
+    | 'analyze:heatmap'
+    | 'analyze:guess'
+    | 'ptab:ensure'
+    | 'ptab:stats'
+    | 'ptab:clear'
 }
 
 export class SolverWorkerClient {
@@ -154,6 +162,7 @@ export class SolverWorkerClient {
     length: number,
     words: string[],
     onProgress?: (stage: string, percent: number) => void,
+    datasetId?: string,
   ): Promise<{ L: number; N: number; M: number; hash32: number }> {
     const id = this.nextId()
     return new Promise((resolve, reject) => {
@@ -163,31 +172,39 @@ export class SolverWorkerClient {
         kind: 'ptab:ensure',
         onPtabProgress: onProgress,
       })
-      this.post({ id, type: 'ptab:ensure', payload: { length, words } } as WorkerMsg)
+      this.post({ id, type: 'ptab:ensure', payload: { length, words, datasetId } } as WorkerMsg)
     })
   }
 
-  ptabStats(length: number): Promise<{ length: number; memorySeedPlanes: number; memoryFallback: number; idbEntries: number }> {
+  ptabStats(
+    length: number,
+    datasetId?: string,
+  ): Promise<{
+    length: number
+    memorySeedPlanes: number
+    memoryFallback: number
+    idbEntries: number
+  }> {
     const id = this.nextId()
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject, kind: 'ptab:stats' })
-      this.post({ id, type: 'ptab:stats', payload: { length } } as WorkerMsg)
+      this.post({ id, type: 'ptab:stats', payload: { length, datasetId } } as WorkerMsg)
     })
   }
 
-  clearPtabMemory(length: number): Promise<void> {
+  clearPtabMemory(length: number, datasetId?: string): Promise<void> {
     const id = this.nextId()
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve: () => resolve(), reject, kind: 'ptab:clear' })
-      this.post({ id, type: 'ptab:clearMemory', payload: { length } } as WorkerMsg)
+      this.post({ id, type: 'ptab:clearMemory', payload: { length, datasetId } } as WorkerMsg)
     })
   }
 
-  clearPtabIDB(length: number): Promise<void> {
+  clearPtabIDB(length: number, datasetId?: string): Promise<void> {
     const id = this.nextId()
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve: () => resolve(), reject, kind: 'ptab:clear' })
-      this.post({ id, type: 'ptab:clearIDB', payload: { length } } as WorkerMsg)
+      this.post({ id, type: 'ptab:clearIDB', payload: { length, datasetId } } as WorkerMsg)
     })
   }
 
