@@ -3,6 +3,7 @@ import { useSession } from '@/app/hooks/useSession'
 import { GuessRow } from '@/app/components/GuessRow'
 import { Keyboard } from '@/app/components/Keyboard'
 import { ToastProvider, useToasts } from '@/app/components/Toaster'
+import { ErrorBoundary } from '@/app/ErrorBoundary'
 import { loadWordlistSetById, listWordlistDescriptors } from '@/solver/data/loader'
 import { buildCandidates, wouldEliminateAll } from '@/app/logic/constraints'
 import { SuggestPanel } from '@/app/components/SuggestPanel'
@@ -10,6 +11,8 @@ import { lazy, Suspense } from 'react'
 import { PrecomputeBanner } from '@/app/components/PrecomputeBanner'
 import { DebugPage } from '@/app/components/DebugPage'
 import { SolverWorkerClient } from '@/worker/client'
+import { fromSeed, toSeedV1 } from '@/app/seed'
+import { ShareBar } from '@/app/components/ShareBar'
 const AnalysisPanel = lazy(() => import('@/app/components/AnalysisPanel'))
 const CandidateTable = lazy(() => import('@/app/components/CandidateTable'))
 const LazyLeaderboard = lazy(() => import('@/app/components/Leaderboard'))
@@ -21,6 +24,43 @@ function AssistantAppInner() {
   const { settings, history, guessInput, setGuessInput, addGuess, setDataset, setLength } = session
   const { push } = useToasts()
   const [started, setStarted] = useState(false)
+  // Hydrate from hash seed once on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const seed = fromSeed(window.location.hash)
+      if (seed) {
+        // Apply length & attempts first
+        session.setLength(seed.length)
+        session.setAttemptsMax(seed.attemptsMax)
+        // Mark started before replay so UI shows
+        setStarted(true)
+        for (const h of seed.history) {
+          if (h.guess.length === seed.length && h.trits.length === seed.length) {
+            session.addGuess(h.guess, h.trits as any)
+          }
+        }
+      }
+    } catch (e: any) {
+      push({ message: `Failed parsing share link: ${e?.message || e}`, tone: 'error' })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Keep hash in sync with current session
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const seed = { length: settings.length, attemptsMax: settings.attemptsMax, history }
+    try {
+      if (history.length) {
+        window.history.replaceState(null, '', toSeedV1(seed as any))
+      } else {
+        window.history.replaceState(null, '', ' ')
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [settings.length, settings.attemptsMax, history])
   const secretDebug = useMemo(() => {
     if (typeof window === 'undefined') return false
     return /[?&]__debug=1/.test(window.location.search) || window.location.hash === '#__debug'
@@ -75,22 +115,49 @@ function AssistantAppInner() {
     document.body.classList.toggle('app-centered', !started)
   }, [settings.colorblind, started])
 
+  // Theme application effect
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const sysPref = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+    const dark = settings.theme === 'dark' || (settings.theme === 'system' && sysPref)
+    document.documentElement.classList.toggle('dark', dark)
+    const meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null
+    if (meta) meta.content = dark ? '#0a0a0a' : '#ffffff'
+  }, [settings.theme])
+
   // Word list loading
   const [words, setWords] = useState<string[] | null>(null)
   const [loadingWords, setLoadingWords] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
   useEffect(() => {
     if (!settings.datasetId) return
     let cancelled = false
     setLoadingWords(true)
     setWords(null)
+    const retry = async <T,>(fn: () => Promise<T>, attempts = 3, delay = 500): Promise<T> => {
+      let last: any
+      for (let i = 0; i < attempts; i++) {
+        try {
+          return await fn()
+        } catch (e) {
+          last = e
+          await new Promise((r) => setTimeout(r, delay * (i + 1)))
+        }
+      }
+      throw last
+    }
     ;(async () => {
       try {
-        const data = await loadWordlistSetById(settings.datasetId!)
+        const data = await retry(() => loadWordlistSetById(settings.datasetId!), 3, 400)
         if (!cancelled) setWords(data.words)
-      } catch (e: any) {
+      } catch (e) {
         if (!cancelled) {
-          push({ message: `Failed loading words: ${e.message || e}`, tone: 'error' })
           setWords([])
+          push({
+            message: 'Failed to load word list. Check your connection and try again.',
+            tone: 'error',
+            actions: [{ label: 'Retry', event: 'retry-wordlist', tone: 'primary' }],
+          })
         }
       } finally {
         if (!cancelled) setLoadingWords(false)
@@ -99,7 +166,16 @@ function AssistantAppInner() {
     return () => {
       cancelled = true
     }
-  }, [settings.datasetId, push])
+  }, [settings.datasetId, push, reloadKey])
+
+  // Listen for retry action
+  useEffect(() => {
+    const handler = (e: any) => {
+      if (e.detail === 'retry-wordlist') setReloadKey((k) => k + 1)
+    }
+    window.addEventListener('ibx:confirm-action', handler)
+    return () => window.removeEventListener('ibx:confirm-action', handler)
+  }, [])
 
   const candidates = useMemo(
     () => (words ? buildCandidates(words, history) : null),
@@ -130,7 +206,9 @@ function AssistantAppInner() {
     if (!isInWordlist(guess)) {
       setPendingConfirm({ kind: 'offlist', guess, trits })
       push({
-        message: `Not in ${settings.datasetId || 'current'} list. Add anyway?`,
+        message:
+          `That word isn’t in ${settings.datasetId || 'current'} (L=${settings.length}). Add anyway?` +
+          ' \nWhy it matters: off-list guesses don’t prune the candidate set.',
         tone: 'warn',
         actions: [
           { label: 'Add', event: 'confirm', tone: 'primary' },
@@ -206,7 +284,14 @@ function AssistantAppInner() {
   if (secretDebug) return <DebugPage />
   return (
     <div className="flex flex-col min-h-dvh">
-      <main className="flex-1 flex flex-col items-center gap-10 p-4 md:p-8 w-full max-w-5xl mx-auto">
+      <a href="#main" className="skip-link">
+        Skip to main content
+      </a>
+      <main
+        id="main"
+        role="main"
+        className="flex-1 flex flex-col items-center gap-10 p-4 md:p-8 w-full max-w-5xl mx-auto"
+      >
         <h1 className="text-3xl font-semibold tracking-tight">Ibexicon</h1>
         {!started && (
           <section className="w-full max-w-md flex flex-col gap-5" aria-label="Setup">
@@ -258,6 +343,21 @@ function AssistantAppInner() {
               />
               <span>Colorblind mode</span>
             </label>
+            <label
+              className="flex flex-col gap-1 text-xs font-medium w-full max-w-xs"
+              title="Theme preference"
+            >
+              <span>Theme</span>
+              <select
+                className="px-3 py-2 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white/90 dark:bg-neutral-800/80 text-sm"
+                value={settings.theme}
+                onChange={(e) => session.setTheme(e.target.value as any)}
+              >
+                <option value="system">System</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </label>
             <div className="flex justify-end">
               <button
                 type="button"
@@ -270,10 +370,15 @@ function AssistantAppInner() {
           </section>
         )}
         {started && (
-          <div className="flex flex-wrap gap-3 justify-center text-xs -mt-4">
+          <div className="flex flex-wrap gap-3 justify-center items-center text-xs -mt-4">
             <div className="px-3 py-1 rounded-full bg-neutral-200 dark:bg-neutral-700">
               {history.length}/{settings.attemptsMax} attempts
             </div>
+            <ShareBar
+              length={settings.length}
+              attemptsMax={settings.attemptsMax}
+              history={history}
+            />
             <button
               type="button"
               className="px-3 py-1 rounded-full bg-red-500 text-white hover:bg-red-600"
@@ -287,7 +392,7 @@ function AssistantAppInner() {
           </div>
         )}
         <section
-          className="flex flex-col gap-3 items-center"
+          className="flex flex-col gap-3 items-center tiles-dense sm:tiles-normal"
           aria-label="Guess history and active row"
           style={{ maxWidth: '100%' }}
         >
@@ -388,9 +493,11 @@ function AssistantAppInner() {
 
 function App() {
   return (
-    <ToastProvider>
-      <AssistantAppInner />
-    </ToastProvider>
+    <ErrorBoundary>
+      <ToastProvider>
+        <AssistantAppInner />
+      </ToastProvider>
+    </ErrorBoundary>
   )
 }
 

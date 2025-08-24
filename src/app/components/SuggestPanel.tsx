@@ -219,7 +219,7 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
       )}
       {results && results.length > 0 && (
         <div className="overflow-auto max-h-80">
-          <table className="w-full text-xs border-collapse">
+          <table className="w-full text-xs border-collapse" aria-label="Suggestions table">
             <thead className="sticky top-0 bg-neutral-100 dark:bg-neutral-800">
               <tr>
                 <th

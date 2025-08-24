@@ -15,6 +15,16 @@ Ibexicon: Hello Solver
 
 ---
 
+## Sharing
+
+Click "Share session link" to copy a URL that encodes settings + guesses in the hash.
+
+Opening a shared link restores the session state.
+
+Dark mode: set Theme to System / Light / Dark in Setup.
+
+---
+
 ## Evaluation (Milestone 7 Scaffolding)
 
 Simulation tooling for benchmarking solver policies is being built. A scaffolded CLI exists now and will soon run full parallel evaluations with prior‑weighted secret sampling.

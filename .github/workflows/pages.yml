@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: 'pages'
   cancel-in-progress: true
 
 jobs:
@@ -62,9 +62,12 @@ jobs:
       - name: Build site (Vite)
         env:
           # Vite reads these so `base` becomes "/<repo>/"
-          GITHUB_ACTIONS: "true"
+          GITHUB_ACTIONS: 'true'
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: npm run build
+
+      - name: Lighthouse CI (accessibility)
+        run: npm run lhci
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

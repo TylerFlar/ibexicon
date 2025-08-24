@@ -92,19 +92,39 @@ export function GuessRow({
     [length, value, trits, disabled, colorblind, mode],
   )
 
-  const focusRef = useRef<HTMLDivElement | null>(null)
+  const firstButtonRef = useRef<HTMLButtonElement | null>(null)
   useEffect(() => {
-    focusRef.current?.focus()
+    firstButtonRef.current?.focus()
   }, [])
+
+  const hiddenInputRef = useRef<HTMLInputElement | null>(null)
+  useEffect(() => {
+    if (mode === 'letters') hiddenInputRef.current?.focus()
+  }, [mode])
 
   return (
     <div
-      ref={focusRef}
-      className="flex flex-col items-center gap-2 outline-none"
-      tabIndex={0}
-      onKeyDown={keyHandler}
+      className="flex flex-col items-center gap-2"
+      role="group"
       aria-label="Active guess row (type letters, then switch to Colors mode to set feedback)"
     >
+      <input
+        ref={hiddenInputRef}
+        type="text"
+        aria-label="Guess letters"
+        aria-describedby={mode === 'letters' ? undefined : 'color-mode-hint'}
+        autoComplete="off"
+        spellCheck={false}
+        inputMode="text"
+        value={value}
+        onChange={(e) => {
+          if (disabled) return
+          const raw = e.target.value.toLowerCase().replace(/[^a-z]/g, '')
+          onChange(raw.slice(0, length))
+        }}
+        onKeyDown={keyHandler}
+        className="sr-only focus:not-sr-only focus:w-0 focus:h-0"
+      />
       <div className="flex flex-col items-center gap-1 mb-1 w-full">
         <div
           role="group"
@@ -130,8 +150,8 @@ export function GuessRow({
           {mode === 'letters' ? `${value.length}/${length} letters` : 'Tap tiles to cycle colors'}
         </div>
       </div>
-      <div className="flex gap-1 mb-1" aria-hidden>
-        {tiles}
+      <div className="flex gap-1 mb-1" aria-label="Guess tiles">
+        {tiles.map((t, i) => (i === 0 ? React.cloneElement(t as any, { ref: firstButtonRef }) : t))}
       </div>
       <button
         type="button"

@@ -16,6 +16,30 @@ body.app-centered {
   align-items: center;
   justify-content: center;
 }
+/* Skip link (visually hidden until focus) */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #1f2937;
+  color: #fff;
+  padding: 0.5rem 0.75rem;
+  z-index: 1000;
+  border-radius: 0 0 4px 0;
+  font-size: 0.875rem;
+  text-decoration: none;
+  outline: 2px solid transparent;
+}
+.skip-link:focus-visible {
+  top: 0;
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+/* Global focus ring for keyboard navigation */
+:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -66,8 +90,18 @@ body.app-centered {
   --tile-bg: var(--tile-bg-correct);
 }
 .tile:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 3px solid #f59e0b;
   outline-offset: 2px;
+}
+/* Dark mode contrast adjustments */
+.dark .tile[data-state='absent'] {
+  --tile-bg: #2f2f31;
+}
+.dark .tile[data-state='present'] {
+  --tile-bg: #a4882d;
+}
+.dark .tile[data-state='correct'] {
+  --tile-bg: #4a7d45;
 }
 .auto-shrink-tiles[data-word-length='16'] .tile {
   --tile-size: 2.8rem;
@@ -173,4 +207,37 @@ body.app-centered {
 .analysis-empty {
   font-size: 0.7rem;
   color: #666;
+}
+
+/* Responsive dense tiles for very small screens */
+@media (max-width: 420px) {
+  .tiles-dense .tile {
+    --tile-size: 2.4rem;
+    font-size: 0.9rem;
+    line-height: 1.25rem;
+  }
+  .tiles-dense.auto-shrink-tiles[data-word-length='16'] .tile {
+    --tile-size: 2.2rem;
+  }
+  .tiles-dense.auto-shrink-tiles[data-word-length='18'] .tile {
+    --tile-size: 2.1rem;
+  }
+  .tiles-dense.auto-shrink-tiles[data-word-length='20'] .tile {
+    --tile-size: 2rem;
+  }
+  .tiles-dense.auto-shrink-tiles[data-word-length='22'] .tile {
+    --tile-size: 1.9rem;
+  }
+  .tiles-dense.auto-shrink-tiles[data-word-length='24'] .tile {
+    --tile-size: 1.8rem;
+  }
+  .tiles-dense.auto-shrink-tiles[data-word-length='26'] .tile {
+    --tile-size: 1.7rem;
+  }
+  .tiles-dense.auto-shrink-tiles[data-word-length='28'] .tile {
+    --tile-size: 1.6rem;
+  }
+  .tiles-dense.auto-shrink-tiles[data-word-length='30'] .tile {
+    --tile-size: 1.5rem;
+  }
 }

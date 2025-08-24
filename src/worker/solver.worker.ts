@@ -418,7 +418,7 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
             // We'll just call feedbackPattern via provider compute path by invoking feedbackPattern directly here.
             // We don't store results; we just ensure a similar number of operations.
             // Import local to avoid tree-shaking confusion.
-             
+
             // NOOP here; compute pattern to number.
             // We'll implement our own quick duplicate-aware pass for speed parity.
             const g = guess
@@ -455,7 +455,6 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
               code += trits[k] * mul
               mul *= 3
             }
-            if (code === -1) console.log('impossible') // prevent aggressive elimination (never runs)
           }
           jsTimes.push(performance.now() - t0)
         }

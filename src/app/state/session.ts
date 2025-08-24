@@ -16,6 +16,7 @@ export interface Settings {
   datasetId?: string // id of the currently selected wordlist set (implies length)
   policyMode: 'auto' | 'composite' | 'pure-eig' | 'in-set-only' | 'unique-letters'
   accelMode: 'auto' | 'js' | 'wasm'
+  theme: 'system' | 'light' | 'dark'
 }
 
 export interface SessionState {
@@ -36,6 +37,7 @@ export type Action =
   | { type: 'setAttemptsMax'; value: number }
   | { type: 'setPolicy'; value: Settings['policyMode'] }
   | { type: 'setAccelMode'; value: Settings['accelMode'] }
+  | { type: 'setTheme'; value: Settings['theme'] }
 
 export function initialState(length: number): SessionState {
   return {
@@ -46,6 +48,7 @@ export function initialState(length: number): SessionState {
       datasetId: `en-${length}`,
       policyMode: 'auto',
       accelMode: 'auto',
+      theme: 'system',
     },
     history: [],
     guessInput: '',
@@ -144,6 +147,10 @@ export function reducer(state: SessionState, action: Action): SessionState {
       if (state.settings.accelMode === action.value) return state
       return { ...state, settings: { ...state.settings, accelMode: action.value } }
     }
+    case 'setTheme': {
+      if (state.settings.theme === action.value) return state
+      return { ...state, settings: { ...state.settings, theme: action.value } }
+    }
     default:
       return state
   }
@@ -176,6 +183,10 @@ function isValidPersist(obj: any): obj is SessionState {
       settings.accelMode !== 'auto' &&
       settings.accelMode !== 'js' &&
       settings.accelMode !== 'wasm') ||
+    (settings.theme &&
+      settings.theme !== 'system' &&
+      settings.theme !== 'light' &&
+      settings.theme !== 'dark') ||
     false
   )
     return false
@@ -199,8 +210,9 @@ export function loadPersisted(): SessionState | null {
       // We now intentionally drop any persisted history/guessInput to avoid carrying over games.
       const policyMode = parsed.settings.policyMode || 'auto'
       const accelMode = parsed.settings.accelMode || 'auto'
+      const theme = parsed.settings.theme || 'system'
       return {
-        settings: { ...parsed.settings, policyMode, accelMode },
+        settings: { ...parsed.settings, policyMode, accelMode, theme },
         history: [],
         guessInput: '',
       }

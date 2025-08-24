@@ -65,12 +65,12 @@ export function loadManifest(): Promise<Manifest> {
       if (raw && Array.isArray(raw.lengths)) {
         const sets: WordlistDescriptor[] = raw.lengths.map((L: number) => ({
           id: `en-${L}`,
-            length: L,
-            category: 'Core',
-            displayName: `English ${L}`,
-            wordsFile: `en-${L}.txt`,
-            priorsFile: `en-${L}-priors.json`,
-            size: raw.vocab?.[String(L)],
+          length: L,
+          category: 'Core',
+          displayName: `English ${L}`,
+          wordsFile: `en-${L}.txt`,
+          priorsFile: `en-${L}-priors.json`,
+          size: raw.vocab?.[String(L)],
         }))
         manifest = { version: 2, sets, meta: raw.meta, lengths: [] as number[] }
       } else {

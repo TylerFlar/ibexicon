@@ -22,6 +22,7 @@ export interface UseSessionResult extends SessionState {
   setAttemptsMax(value: number): void
   setPolicy(value: 'auto' | 'composite' | 'pure-eig' | 'in-set-only' | 'unique-letters'): void
   setAccelMode(value: 'auto' | 'js' | 'wasm'): void
+  setTheme(value: 'system' | 'light' | 'dark'): void
 }
 
 export function useSession(): UseSessionResult {
@@ -67,6 +68,10 @@ export function useSession(): UseSessionResult {
     (value: 'auto' | 'js' | 'wasm') => dispatch({ type: 'setAccelMode', value }),
     [],
   )
+  const setTheme = useCallback(
+    (value: 'system' | 'light' | 'dark') => dispatch({ type: 'setTheme', value }),
+    [],
+  )
 
   return {
     ...state,
@@ -82,5 +87,6 @@ export function useSession(): UseSessionResult {
     setAttemptsMax,
     setPolicy,
     setAccelMode,
+    setTheme,
   }
 }

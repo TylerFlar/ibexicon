@@ -7,7 +7,8 @@ export async function ensureWasm() {
     _ready = (async () => {
       const modNs: any = await import('@/wasm/pkg/ibxwasm.js')
       // Our patched glue exports a default promise (init) plus named exports.
-      const promise = modNs.default && typeof modNs.default.then === 'function' ? modNs.default : null
+      const promise =
+        modNs.default && typeof modNs.default.then === 'function' ? modNs.default : null
       if (promise) await promise // ensure instantiation finished
       _mod = modNs
       return modNs
@@ -34,7 +35,7 @@ export async function wasmPatternRowU16(
     // guard: only valid for L <= 10
     if (guess.length > 10) return null
     // Create JS array to hand over (wasm-bindgen wants Array for our signature)
-     
+
     const arr: any = secrets
     return mod.pattern_row_u16(guess, arr) as Uint16Array
   } catch {

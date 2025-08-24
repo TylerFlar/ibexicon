@@ -196,8 +196,11 @@ export default function Leaderboard() {
       <div className="flex flex-wrap gap-3 items-center text-xs">
         <div className="font-semibold">Leaderboard</div>
         <div className="flex items-center gap-1">
-          <label className="font-medium">Sort:</label>
+          <label htmlFor="leaderboard-sort" className="font-medium">
+            Sort:
+          </label>
           <select
+            id="leaderboard-sort"
             className="px-2 py-1 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white/90 dark:bg-neutral-800/70"
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
