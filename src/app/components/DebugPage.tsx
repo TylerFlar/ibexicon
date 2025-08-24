@@ -6,6 +6,7 @@ import { SolverWorkerClient } from '@/worker/client'
 import { WordlistDebug } from './WordlistDebug'
 import { SolverDebug } from './SolverDebug'
 import { SuggestDebug } from './SuggestDebug'
+import { WasmBench } from './WasmBench'
 
 // Secret debug page aggregating internal tooling. Access via ?__debug=1 or #__debug
 
@@ -121,6 +122,9 @@ export function DebugPage() {
       )}
       {words && <CacheDebug client={client} length={length} />}
       <div className="w-full max-w-5xl flex flex-col gap-4">
+        <section className="border border-neutral-300 dark:border-neutral-700 rounded p-3 bg-white dark:bg-neutral-900">
+          <WasmBench client={client} defaultLength={length} />
+        </section>
         <section className="border border-neutral-300 dark:border-neutral-700 rounded p-3 bg-white dark:bg-neutral-900">
           <header className="flex items-center justify-between gap-4">
             <h2 className="text-sm font-semibold">Panels</h2>

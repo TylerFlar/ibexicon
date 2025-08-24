@@ -1,7 +1,7 @@
 /* Solver Web Worker (module) providing scoring RPC with progress & cancellation */
 import { suggestNextWithProvider, CanceledError } from '@/solver/scoring'
 import { letterPositionHeatmap, explainGuess } from '@/solver/analysis'
-import { createPatternProvider } from './ptabCache'
+import { createPatternProvider, setUserAccelMode } from './ptabCache'
 import { countPtabForLength, deletePtabForLength } from './idb'
 
 // Message definitions (incoming)
@@ -56,6 +56,8 @@ export type Msg =
     }
   | { id: number; type: 'cancel' }
   | { id: number; type: 'dispose' }
+  | { id: number; type: 'config:accel'; payload: { mode: 'auto' | 'js' | 'wasm' } }
+  | { id: number; type: 'bench:patternRow'; payload: { length: number; N: number } }
 
 // Outgoing messages (replies / events)
 export type OutMsg =
@@ -79,6 +81,7 @@ export type OutMsg =
   | { id: number; type: 'canceled' }
   | { id: number; type: 'error'; error: { message: string; stack?: string } }
   | { id: number; type: 'disposed' }
+  | { id: number; type: 'bench:result'; jsMs: number; wasmMs: number | null }
 
 let canceled = false
 const patternProvider = createPatternProvider()
@@ -132,6 +135,21 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
             /* ignore */
           }
         }
+        const out: OutMsg = { id: msg.id, type: 'warmup:ok' }
+        ;(self as unknown as Worker).postMessage(out)
+      } catch (err) {
+        const error =
+          err instanceof Error
+            ? { message: err.message, stack: err.stack }
+            : { message: String(err) }
+        const out: OutMsg = { id: msg.id, type: 'error', error }
+        ;(self as unknown as Worker).postMessage(out)
+      }
+      return
+    }
+    case 'config:accel': {
+      try {
+        setUserAccelMode(msg.payload.mode)
         const out: OutMsg = { id: msg.id, type: 'warmup:ok' }
         ;(self as unknown as Worker).postMessage(out)
       } catch (err) {
@@ -362,6 +380,103 @@ self.onmessage = async (e: MessageEvent<Msg>) => {
         const sample = useSample ? { size } : undefined
         const result = explainGuess(guess, words, pArr, sample)
         const out: OutMsg = { id: msg.id, type: 'analyze:guess:result', result }
+        ;(self as unknown as Worker).postMessage(out)
+      } catch (err) {
+        const error =
+          err instanceof Error
+            ? { message: err.message, stack: err.stack }
+            : { message: String(err) }
+        const out: OutMsg = { id: msg.id, type: 'error', error }
+        ;(self as unknown as Worker).postMessage(out)
+      }
+      return
+    }
+    case 'bench:patternRow': {
+      // Pattern row micro-benchmark
+      const { length, N } = msg.payload
+      try {
+        // Acquire words (ensure length asset or fallback) by attempting ensureForLength with dummy words list.
+        // Instead, we just rely on patternProvider calling environment for precomputed; we need actual word list though.
+        // Here we cannot fetch main thread words; so we synthesize pseudo-random words over alphabet.
+        const L = length
+        const alpha = 'abcdefghijklmnopqrstuvwxyz'
+        function randWord(): string {
+          let s = ''
+            for (let i = 0; i < L; i++) s += alpha[(Math.random() * 26) | 0]!
+          return s
+        }
+        const secrets: string[] = Array.from({ length: N }, randWord)
+        const guess = secrets[(Math.random() * secrets.length) | 0] || randWord()
+        // JS baseline
+        const runs = 3
+        const jsTimes: number[] = []
+        for (let r = 0; r < runs; r++) {
+          const t0 = performance.now()
+          for (let i = 0; i < N; i++) {
+            // local inline of feedbackPattern would avoid overhead, but we reuse provider path for integrity.
+            // Direct compute replicating getPatterns fallback JS loop (simplified duplicates logic inside feedbackPattern).
+            // We'll just call feedbackPattern via provider compute path by invoking feedbackPattern directly here.
+            // We don't store results; we just ensure a similar number of operations.
+            // Import local to avoid tree-shaking confusion.
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            // NOOP here; compute pattern to number.
+            // We'll implement our own quick duplicate-aware pass for speed parity.
+            const g = guess
+            const s = secrets[i]!
+            if (g.length !== s.length) continue
+            const counts = new Array(26).fill(0)
+            const greens: boolean[] = []
+            for (let k = 0; k < L; k++) {
+              const c = s.charCodeAt(k) - 97
+              if (c >= 0 && c < 26) counts[c]++
+            }
+            const trits = new Array(L).fill(0)
+            for (let k = 0; k < L; k++) {
+              if (g[k] === s[k]) {
+                trits[k] = 2
+                const c = g.charCodeAt(k) - 97
+                if (c >= 0 && c < 26) counts[c]--
+                greens[k] = true
+              }
+            }
+            for (let k = 0; k < L; k++) {
+              if (trits[k] === 0) {
+                const c = g.charCodeAt(k) - 97
+                if (c >= 0 && c < 26 && counts[c] > 0) {
+                  trits[k] = 1
+                  counts[c]--
+                }
+              }
+            }
+            // encode base3 (no storing)
+            let code = 0
+            let mul = 1
+            for (let k = 0; k < L; k++) {
+              code += trits[k] * mul
+              mul *= 3
+            }
+            if (code === -1) console.log('impossible') // prevent aggressive elimination (never runs)
+          }
+          jsTimes.push(performance.now() - t0)
+        }
+        const jsMs = Math.min(...jsTimes)
+        let wasmMs: number | null = null
+        if (L <= 10) {
+          try {
+            const { wasmPatternRowU16 } = await import('@/wasm')
+            const wasmTimes: number[] = []
+            for (let r = 0; r < runs; r++) {
+              const t0 = performance.now()
+              const arr = await wasmPatternRowU16(guess, secrets)
+              if (!arr) throw new Error('WASM returned null')
+              wasmTimes.push(performance.now() - t0)
+            }
+            wasmMs = Math.min(...wasmTimes)
+          } catch {
+            wasmMs = null
+          }
+        }
+        const out: OutMsg = { id: msg.id, type: 'bench:result', jsMs, wasmMs }
         ;(self as unknown as Worker).postMessage(out)
       } catch (err) {
         const error =

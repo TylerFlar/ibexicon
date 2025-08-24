@@ -21,6 +21,7 @@ export interface UseSessionResult extends SessionState {
   toggleColorblind(): void
   setAttemptsMax(value: number): void
   setPolicy(value: 'auto' | 'composite' | 'pure-eig' | 'in-set-only' | 'unique-letters'): void
+  setAccelMode(value: 'auto' | 'js' | 'wasm'): void
 }
 
 export function useSession(): UseSessionResult {
@@ -62,6 +63,10 @@ export function useSession(): UseSessionResult {
       dispatch({ type: 'setPolicy', value }),
     [],
   )
+  const setAccelMode = useCallback(
+    (value: 'auto' | 'js' | 'wasm') => dispatch({ type: 'setAccelMode', value }),
+    [],
+  )
 
   return {
     ...state,
@@ -76,5 +81,6 @@ export function useSession(): UseSessionResult {
     toggleColorblind,
     setAttemptsMax,
     setPolicy,
+    setAccelMode,
   }
 }

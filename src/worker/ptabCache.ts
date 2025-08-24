@@ -1,6 +1,7 @@
 /** Pattern table provider with binary asset loading + IndexedDB + in-memory LRU fallback. */
 
 import { feedbackPattern } from '@/solver/feedback'
+import { readWasmMode } from '@/wasm/feature'
 import { wasmPatternRowU16 } from '@/wasm'
 import { ByteLRU } from './lru'
 import { parsePtabBinary } from '@/ptab/parse'
@@ -72,6 +73,11 @@ function basePath(): string {
   }
   if (base.endsWith('/')) base = base.slice(0, -1)
   return `${base}/wordlists/en`
+}
+
+let userAccelMode: 'auto' | 'js' | 'wasm' = 'auto'
+export function setUserAccelMode(mode: 'auto' | 'js' | 'wasm') {
+  userAccelMode = mode
 }
 
 export function createPatternProvider(opts?: ProviderOpts): PatternProvider {
@@ -238,7 +244,10 @@ export function createPatternProvider(opts?: ProviderOpts): PatternProvider {
         const L = words[0]?.length ?? 0
         let arr: Uint16Array | null = null
         // Attempt WASM acceleration for small L (<=10) if available
-        if (L <= 10) {
+        const envMode = readWasmMode()
+        const allowWasm =
+          userAccelMode === 'wasm' || (userAccelMode === 'auto' && envMode !== 'off')
+        if (allowWasm && L <= 10) {
           try {
             arr = await wasmPatternRowU16(guess, words)
           } catch {

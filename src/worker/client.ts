@@ -158,6 +158,30 @@ export class SolverWorkerClient {
     })
   }
 
+  setAccelMode(mode: 'auto' | 'js' | 'wasm'): Promise<void> {
+    const id = this.nextId()
+    return new Promise<void>((resolve, reject) => {
+      this.pending.set(id, {
+        resolve: resolve as (v: void) => void,
+        reject: reject as (e: unknown) => void,
+        kind: 'warmup', // reuse warmup:ok acknowledgement
+      })
+      this.post({ id, type: 'config:accel', payload: { mode } } as WorkerMsg)
+    })
+  }
+
+  benchPatternRow(length: number, N: number): Promise<{ jsMs: number; wasmMs: number | null }> {
+    const id = this.nextId()
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, {
+        resolve: resolve as (v: { jsMs: number; wasmMs: number | null }) => void,
+        reject,
+        kind: 'warmup',
+      })
+      this.post({ id, type: 'bench:patternRow', payload: { length, N } } as WorkerMsg)
+    })
+  }
+
   ensurePtab(
     length: number,
     words: string[],

@@ -14,6 +14,7 @@ export function WorkerSuggestPanel() {
     () => (workerAvailable ? new SolverWorkerClient() : (null as any)),
     [workerAvailable],
   )
+  const [accelMode, setAccelMode] = useState<'auto' | 'js' | 'wasm'>('auto')
   const [manifestLengths, setManifestLengths] = useState<number[]>([])
   const [selectedLen, setSelectedLen] = useState<number | null>(null)
   const [loaded, setLoaded] = useState<LoadedSet | null>(null)
@@ -31,10 +32,16 @@ export function WorkerSuggestPanel() {
   // Load manifest once
   useEffect(() => {
     let mounted = true
-    loadManifest().then((m) => {
+    loadManifest().then((m: any) => {
       if (!mounted) return
-      setManifestLengths(m.lengths)
-      if (m.lengths.length) setSelectedLen(m.lengths[0]!)
+      const lengthsAny = Array.isArray(m.sets)
+        ? [...new Set((m.sets as any[]).map((s) => Number((s as any).length) || 0))].filter(
+            (n: any) => typeof n === 'number' && n > 0,
+          )
+        : []
+      const lengths = lengthsAny as number[]
+      setManifestLengths(lengths)
+      if (lengths.length) setSelectedLen(lengths[0]!)
     })
     if (workerAvailable)
       client.warmup().catch(() => {
@@ -45,6 +52,12 @@ export function WorkerSuggestPanel() {
       if (workerAvailable) client.dispose()
     }
   }, [client, workerAvailable])
+
+  // Send accel mode to worker when changed
+  useEffect(() => {
+    if (!workerAvailable) return
+    client.setAccelMode(accelMode).catch(() => {/* ignore */})
+  }, [accelMode, client, workerAvailable])
 
   // Load wordlist when length changes
   useEffect(() => {
@@ -121,6 +134,19 @@ export function WorkerSuggestPanel() {
     <section style={{ marginTop: '2rem' }}>
       <h2>Worker Suggest Panel</h2>
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <label>
+          Accel:
+          <select
+            value={accelMode}
+            onChange={(e) => setAccelMode(e.target.value as any)}
+            style={{ marginLeft: '0.25rem' }}
+            title="Debug acceleration mode override"
+          >
+            <option value="auto">Auto</option>
+            <option value="js">JS</option>
+            <option value="wasm">WASM</option>
+          </select>
+        </label>
         <label>
           Length:
           <select

@@ -15,6 +15,7 @@ export interface Settings {
   colorblind: boolean
   datasetId?: string // id of the currently selected wordlist set (implies length)
   policyMode: 'auto' | 'composite' | 'pure-eig' | 'in-set-only' | 'unique-letters'
+  accelMode: 'auto' | 'js' | 'wasm'
 }
 
 export interface SessionState {
@@ -34,6 +35,7 @@ export type Action =
   | { type: 'toggleColorblind' }
   | { type: 'setAttemptsMax'; value: number }
   | { type: 'setPolicy'; value: Settings['policyMode'] }
+  | { type: 'setAccelMode'; value: Settings['accelMode'] }
 
 export function initialState(length: number): SessionState {
   return {
@@ -43,6 +45,7 @@ export function initialState(length: number): SessionState {
       colorblind: false,
       datasetId: `en-${length}`,
       policyMode: 'auto',
+      accelMode: 'auto',
     },
     history: [],
     guessInput: '',
@@ -69,6 +72,7 @@ export function reducer(state: SessionState, action: Action): SessionState {
             ? state.settings.datasetId
             : `en-${length}`,
           policyMode: state.settings.policyMode,
+          accelMode: state.settings.accelMode,
         },
         history: [],
         guessInput: '',
@@ -136,6 +140,10 @@ export function reducer(state: SessionState, action: Action): SessionState {
       if (state.settings.policyMode === action.value) return state
       return { ...state, settings: { ...state.settings, policyMode: action.value } }
     }
+    case 'setAccelMode': {
+      if (state.settings.accelMode === action.value) return state
+      return { ...state, settings: { ...state.settings, accelMode: action.value } }
+    }
     default:
       return state
   }
@@ -164,6 +172,10 @@ function isValidPersist(obj: any): obj is SessionState {
       settings.policyMode !== 'pure-eig' &&
       settings.policyMode !== 'in-set-only' &&
       settings.policyMode !== 'unique-letters') ||
+    (settings.accelMode &&
+      settings.accelMode !== 'auto' &&
+      settings.accelMode !== 'js' &&
+      settings.accelMode !== 'wasm') ||
     false
   )
     return false
@@ -186,8 +198,9 @@ export function loadPersisted(): SessionState | null {
     if (isValidPersist(parsed)) {
       // We now intentionally drop any persisted history/guessInput to avoid carrying over games.
       const policyMode = parsed.settings.policyMode || 'auto'
+      const accelMode = parsed.settings.accelMode || 'auto'
       return {
-        settings: { ...parsed.settings, policyMode },
+        settings: { ...parsed.settings, policyMode, accelMode },
         history: [],
         guessInput: '',
       }
