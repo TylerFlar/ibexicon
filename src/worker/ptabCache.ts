@@ -1,6 +1,7 @@
 /** Pattern table provider with binary asset loading + IndexedDB + in-memory LRU fallback. */
 
 import { feedbackPattern } from '@/solver/feedback'
+import { wasmPatternRowU16 } from '@/wasm'
 import { ByteLRU } from './lru'
 import { parsePtabBinary } from '@/ptab/parse'
 import { getPtab, setPtab } from './idb'
@@ -234,15 +235,29 @@ export function createPatternProvider(opts?: ProviderOpts): PatternProvider {
     if (!pending) {
       pending = (async () => {
         const N = words.length
-        const arr = new Uint16Array(N)
-        for (let i = 0; i < N; i++) {
-          const pat = feedbackPattern(guess, words[i]!)
-          arr[i] = typeof pat === 'number' ? pat : Number(pat)
+        const L = words[0]?.length ?? 0
+        let arr: Uint16Array | null = null
+        // Attempt WASM acceleration for small L (<=10) if available
+        if (L <= 10) {
+          try {
+            arr = await wasmPatternRowU16(guess, words)
+          } catch {
+            /* swallow and fallback */
+          }
         }
-        // Persist
-        const buf = arr.buffer.slice(0) // clone to detach from potential views
-        lru.set(cacheKey, buf)
-        await setPtab(length, guess, buf, datasetId)
+        if (!arr) {
+          // JS fallback path
+            const tmp = new Uint16Array(N)
+            for (let i = 0; i < N; i++) {
+              const pat = feedbackPattern(guess, words[i]!)
+              tmp[i] = typeof pat === 'number' ? pat : Number(pat)
+            }
+            arr = tmp
+        }
+        // Persist (arr guaranteed non-null)
+  const buf = arr.buffer.slice(0) as ArrayBuffer // clone to detach from potential views
+  lru.set(cacheKey, buf as ArrayBuffer)
+  await setPtab(length, guess, buf as ArrayBuffer, datasetId)
         return arr
       })()
       pendingComputes.set(cacheKey, pending)

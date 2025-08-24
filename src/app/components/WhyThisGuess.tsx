@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { SolverWorkerClient, type GuessExplain } from '@/worker/client'
+import { explainGuess } from '@/solver/analysis'
 import { decodePattern } from '@/solver/pattern'
 import { feedbackPattern } from '@/solver/feedback'
 import { patternEquals } from '@/solver/pattern'
@@ -8,7 +9,7 @@ export interface WhyThisGuessProps {
   guess: string
   words: string[]
   priors: Record<string, number>
-  client: SolverWorkerClient | null
+  client?: SolverWorkerClient | null
 }
 
 interface PatternRow {
@@ -25,25 +26,53 @@ export const WhyThisGuess: React.FC<WhyThisGuessProps> = ({ guess, words, priors
   const L = guess.length
 
   useEffect(() => {
-    if (!client || !guess) return
+    if (!guess) return
     let cancelled = false
     setLoading(true)
     setError(null)
     setData(null)
-    client
-      .analyzeGuess({ guess, words, priors })
-      .then((res) => {
-        if (cancelled) return
-        setData(res)
-      })
-      .catch((e) => {
-        if (cancelled) return
-        setError(e.message || String(e))
-      })
-      .finally(() => {
-        if (cancelled) return
-        setLoading(false)
-      })
+    if (client) {
+      client
+        .analyzeGuess({ guess, words, priors })
+        .then((res) => {
+          if (cancelled) return
+          setData(res)
+        })
+        .catch((e) => {
+          if (cancelled) return
+          setError(e.message || String(e))
+        })
+        .finally(() => {
+          if (cancelled) return
+          setLoading(false)
+        })
+      return () => {
+        cancelled = true
+      }
+    }
+    // Local fallback path (no worker): compute explanation directly.
+    ;(async () => {
+      try {
+        // Build aligned priors Float64Array
+        const n = words.length
+        const pArr = new Float64Array(n)
+        let sum = 0
+        for (let i = 0; i < n; i++) sum += priors[words[i]!] || 0
+        if (sum > 0) {
+          for (let i = 0; i < n; i++) pArr[i] = priors[words[i]!] || 0
+        } else {
+          const u = 1 / (n || 1)
+            ;(pArr as any).fill(u)
+        }
+        // Always perform full enumeration (no sampling) for deterministic, exact pattern probabilities.
+        const res = explainGuess(guess, words, pArr, undefined)
+        if (!cancelled) setData(res)
+      } catch (e: any) {
+        if (!cancelled) setError(e.message || String(e))
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
     return () => {
       cancelled = true
     }
@@ -159,6 +188,11 @@ export const WhyThisGuess: React.FC<WhyThisGuessProps> = ({ guess, words, priors
                 </li>
               ))}
             </ul>
+            {data && (
+              <div className="mt-1 text-[0.55rem] opacity-70">
+                P(no overlap) = {(100 - data.coverageMass * 100).toFixed(2)}% (should closely match 00000 pattern probability since this is full enumeration).
+              </div>
+            )}
           </div>
           {previewWords.length > 0 && (
             <details>

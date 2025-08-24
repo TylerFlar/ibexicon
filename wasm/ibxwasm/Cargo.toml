@@ -1,0 +1,18 @@
+[package]
+name = "ibxwasm"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+console_error_panic_hook = "0.1.7"
+# JS interop for typed arrays & Array
+js-sys = "0.3"
+# optional tiny allocator (commented; enable later if size matters)
+# wee_alloc = { version = "0.4.5", optional = true }
+
+[features]
+default = []

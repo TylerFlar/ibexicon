@@ -296,7 +296,6 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
                           guess={s.guess}
                           words={candidateWords}
                           priors={wordData?.priors || {}}
-                          client={null as any /* TODO: adapt WhyThisGuess to optional worker */}
                         />
                       </td>
                     </tr>

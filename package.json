@@ -16,7 +16,9 @@
     "eval:run": "tsx eval/sim/cli.ts",
     "eval:ci": "tsx eval/sim/cli.ts --lengths 5 --trials 50 --attempts 6 --policies composite --concurrency 2",
     "build:ptab": "tsx eval/ptab/build.ts",
-    "add:dataset": "tsx scripts/add-dataset.ts"
+    "add:dataset": "tsx scripts/add-dataset.ts",
+    "wasm:dev": "wasm-pack build wasm/ibxwasm --target bundler --out-dir ../../src/wasm/pkg",
+    "wasm:build": "wasm-pack build wasm/ibxwasm --target bundler --release --out-dir ../../src/wasm/pkg"
   },
   "dependencies": {
     "react": "^19.1.1",
@@ -50,7 +52,8 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.40.0",
     "vite": "^7.1.2",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "wasm-pack": "^0.13.1"
   },
   "description": "Any-length Wordle solver with smart explore/exploit, deployable on GitHub Pages.",
   "license": "MIT"
