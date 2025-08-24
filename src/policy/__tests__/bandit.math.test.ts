@@ -25,15 +25,15 @@ describe('bandit math', () => {
     expect(s.arms['pure-eig'].a).toBe(1)
     expect(s.arms['pure-eig'].b).toBe(1)
     // Sampling: composite should dominate (~ due to higher posterior mean). Allow lenient check.
-  const counts = freq(() => samplePolicy(L), 3000)
-  // Expect composite picked more than any single other arm and >30% of draws (exploration still occurs)
-  const compCount = counts['composite'] || 0
-  const others = Object.entries(counts).filter(([k]) => k !== 'composite')
-  // Composite should generally exceed or tie others with high probability after reward sequence.
-  let betterOrEqual = 0
-  for (const [, c] of others) if (compCount >= c!) betterOrEqual++
-  expect(betterOrEqual).toBeGreaterThanOrEqual(3) // dominates most others
-  expect(compCount).toBeGreaterThan(800) // > ~26% of 3000
+    const counts = freq(() => samplePolicy(L), 3000)
+    // Expect composite picked more than any single other arm and >30% of draws (exploration still occurs)
+    const compCount = counts['composite'] || 0
+    const others = Object.entries(counts).filter(([k]) => k !== 'composite')
+    // Composite should generally exceed or tie others with high probability after reward sequence.
+    let betterOrEqual = 0
+    for (const [, c] of others) if (compCount >= c!) betterOrEqual++
+    expect(betterOrEqual).toBeGreaterThanOrEqual(3) // dominates most others
+    expect(compCount).toBeGreaterThan(800) // > ~26% of 3000
   })
 
   it('decay with half-life=1 reduces influence of older counts', () => {

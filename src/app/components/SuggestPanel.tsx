@@ -5,11 +5,18 @@ import { alphaFor } from '@/solver/scoring'
 import WhyThisGuess from '@/app/components/WhyThisGuess'
 import { loadWordlistSet, loadWordlistSetById } from '@/solver/data/loader'
 import { useToasts } from '@/app/components/Toaster'
-import { samplePolicy, updatePolicy, rewardFromSizes, resetState as resetBanditState } from '@/policy/bandit'
+import {
+  samplePolicy,
+  updatePolicy,
+  rewardFromSizes,
+  resetState as resetBanditState,
+} from '@/policy/bandit'
 import { suggestByPolicy, type PolicyId } from '@/policy/policies'
 // Simplified; WhatIf / preview removed
 
-export interface SuggestPanelProps { session: UseSessionResult }
+export interface SuggestPanelProps {
+  session: UseSessionResult
+}
 
 interface WordData {
   words: string[]
@@ -72,7 +79,8 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
   // Policy-based suggestions (no worker)
   const [inFlight, setInFlight] = useState(false)
   const [results, setResults] = useState<
-    { guess: string; eig: number; solveProb: number; expectedRemaining: number; alpha?: number }[] | null
+    | { guess: string; eig: number; solveProb: number; expectedRemaining: number; alpha?: number }[]
+    | null
   >(null)
   const [openWhy, setOpenWhy] = useState<Record<string, boolean>>({})
   const lastPolicyRef = useRef<PolicyId | null>(null)
@@ -91,7 +99,8 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
     setResults(null)
     try {
       const userChoice = settings.policyMode
-      const activePolicy: PolicyId = userChoice === 'auto' ? samplePolicy(settings.length) : (userChoice as PolicyId)
+      const activePolicy: PolicyId =
+        userChoice === 'auto' ? samplePolicy(settings.length) : (userChoice as PolicyId)
       lastPolicyRef.current = activePolicy
       const suggestions = await suggestByPolicy(activePolicy, {
         words: candidateWords,
@@ -114,7 +123,16 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
     } finally {
       setInFlight(false)
     }
-  }, [wordData, candidates, candidateWords, attemptsLeft, attemptsMax, push, settings.policyMode, settings.length])
+  }, [
+    wordData,
+    candidates,
+    candidateWords,
+    attemptsLeft,
+    attemptsMax,
+    push,
+    settings.policyMode,
+    settings.length,
+  ])
 
   // Auto-run for small sets
   useEffect(() => {
@@ -155,7 +173,9 @@ export function SuggestPanel({ session }: SuggestPanelProps) {
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[0.65rem]">
           <label className="flex items-center gap-1">
-            <span className="font-semibold tracking-tight text-neutral-600 dark:text-neutral-300">Policy:</span>
+            <span className="font-semibold tracking-tight text-neutral-600 dark:text-neutral-300">
+              Policy:
+            </span>
             <select
               className="px-1 py-0.5 rounded border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-[0.65rem]"
               value={settings.policyMode}

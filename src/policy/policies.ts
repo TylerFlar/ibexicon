@@ -1,6 +1,6 @@
-import { suggestNext } from "@/solver/scoring"
+import { suggestNext } from '@/solver/scoring'
 
-export type PolicyId = "composite" | "pure-eig" | "in-set-only" | "unique-letters"
+export type PolicyId = 'composite' | 'pure-eig' | 'in-set-only' | 'unique-letters'
 
 export interface PolicyInput {
   words: string[]
@@ -49,19 +49,40 @@ function uniqueLetterScore(w: string): number {
   return set.size
 }
 
-export async function suggestByPolicy(id: PolicyId, input: PolicyInput): Promise<PolicySuggestion[]> {
+export async function suggestByPolicy(
+  id: PolicyId,
+  input: PolicyInput,
+): Promise<PolicySuggestion[]> {
   const { words, priors, attemptsLeft, attemptsMax, topK, tau, seed } = input
   if (!words.length) return []
   switch (id) {
-    case "composite": {
+    case 'composite': {
       const res = suggestNext({ words, priors }, { attemptsLeft, attemptsMax, topK, tau, seed })
-      return res.map(r => ({ guess: r.guess, score: r.eig * (r.alpha ?? 0.5) + (r.solveProb ?? 0) * (1-(r.alpha ?? 0.5)), eig: r.eig, solveProb: r.solveProb, expectedRemaining: r.expectedRemaining, alpha: r.alpha }))
+      return res.map((r) => ({
+        guess: r.guess,
+        score: r.eig * (r.alpha ?? 0.5) + (r.solveProb ?? 0) * (1 - (r.alpha ?? 0.5)),
+        eig: r.eig,
+        solveProb: r.solveProb,
+        expectedRemaining: r.expectedRemaining,
+        alpha: r.alpha,
+      }))
     }
-    case "pure-eig": {
-      const res = suggestNext({ words, priors }, { attemptsLeft, attemptsMax, topK, tau, seed, alphaOverride: 1 })
-      return res.map(r => ({ guess: r.guess, score: r.eig, eig: r.eig, solveProb: r.solveProb, expectedRemaining: r.expectedRemaining, alpha: 1 }))
+    case 'pure-eig': {
+      const res = suggestNext(
+        { words, priors },
+        { attemptsLeft, attemptsMax, topK, tau, seed, alphaOverride: 1 },
+      )
+      return res.map((r) => ({
+        guess: r.guess,
+        score: r.eig,
+        eig: r.eig,
+        solveProb: r.solveProb,
+        expectedRemaining: r.expectedRemaining,
+        alpha: 1,
+      }))
     }
-    case "in-set-only": { // pure solve probability
+    case 'in-set-only': {
+      // pure solve probability
       const p = renormOnS(words, priors)
       const idxs = [...words.keys()]
       idxs.sort((a, b) => {
@@ -69,9 +90,11 @@ export async function suggestByPolicy(id: PolicyId, input: PolicyInput): Promise
         if (diff !== 0) return diff
         return words[a]! < words[b]! ? -1 : 1
       })
-      return idxs.slice(0, topK).map(i => ({ guess: words[i]!, score: p[i]!, solveProb: p[i]!, alpha: 0 }))
+      return idxs
+        .slice(0, topK)
+        .map((i) => ({ guess: words[i]!, score: p[i]!, solveProb: p[i]!, alpha: 0 }))
     }
-    case "unique-letters": {
+    case 'unique-letters': {
       const p = renormOnS(words, priors)
       const idxs = [...words.keys()]
       idxs.sort((a, b) => {
@@ -84,7 +107,9 @@ export async function suggestByPolicy(id: PolicyId, input: PolicyInput): Promise
         if (pb !== pa) return pb - pa
         return words[a]! < words[b]! ? -1 : 1
       })
-      return idxs.slice(0, topK).map(i => ({ guess: words[i]!, score: uniqueLetterScore(words[i]!) }))
+      return idxs
+        .slice(0, topK)
+        .map((i) => ({ guess: words[i]!, score: uniqueLetterScore(words[i]!) }))
     }
   }
 }

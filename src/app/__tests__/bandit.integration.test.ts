@@ -6,7 +6,10 @@ import { buildCandidates } from '@/app/logic/constraints'
 // Tiny vocab
 const words = ['aaaa', 'aaab', 'aaba', 'abaa']
 
-interface GuessEntry { guess: string; trits: (0|1|2)[] }
+interface GuessEntry {
+  guess: string
+  trits: (0 | 1 | 2)[]
+}
 
 // Helper to generate fake history and compute alive counts
 function aliveCount(history: GuessEntry[]) {
@@ -31,21 +34,21 @@ describe('bandit integration (session-like history updates)', () => {
     expect(before0).toBe(words.length)
 
     // First guess eliminates something: fabricate pattern with one green to keep multiple candidates
-    history.push({ guess: 'aaaa', trits: [2,0,0,0] })
+    history.push({ guess: 'aaaa', trits: [2, 0, 0, 0] })
     const before1 = words.length // size before applying first guess was full set
     const after1 = aliveCount(history)
     const { r01: r1 } = rewardFromSizes(before1, after1)
     updatePolicy(L, 'composite', r1)
 
     // Second guess
-    history.push({ guess: 'aaab', trits: [2,2,0,0] })
+    history.push({ guess: 'aaab', trits: [2, 2, 0, 0] })
     const before2 = aliveCount(history.slice(0, history.length - 1))
     const after2 = aliveCount(history)
     const { r01: r2 } = rewardFromSizes(before2, after2)
     updatePolicy(L, 'composite', r2)
 
     // Third guess (solve)
-    history.push({ guess: 'aaba', trits: [2,2,2,2] })
+    history.push({ guess: 'aaba', trits: [2, 2, 2, 2] })
     const before3 = aliveCount(history.slice(0, history.length - 1))
     const after3 = 1 // solved
     const { r01: r3 } = rewardFromSizes(before3, after3)

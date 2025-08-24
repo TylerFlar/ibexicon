@@ -35,6 +35,87 @@ Planned outputs (future work) will appear in `eval/results/` as timestamped JSON
 
 ---
 
+## Policy Bandit (Auto)
+
+The UI exposes an "Auto (Bandit)" policy that adaptively selects among several underlying strategies using Thompson Sampling with exponential decay and per‑length persistence.
+
+### Arms / Underlying Policies
+
+Current bandit arms (per word length):
+
+- `composite` – Dynamic blend of information gain (EIG) and direct solve probability via adaptive alpha schedule.
+- `pure-eig` – Always maximizes expected information gain (alpha = 1).
+- `in-set-only` – Pure exploitation: pick the highest posterior (renormalized) candidate.
+- `unique-letters` – Heuristic maximizing count of distinct letters (tie‑break by prior, then lexicographic).
+
+(`pure-solve` exists in the simulator for baseline comparison but is not part of the adaptive bandit arm set.)
+
+### Reward Definition (r ∈ [0,1])
+
+After each applied guess the solver observes the candidate set size shrink from |S_before| to |S_after|. The normalized reward is:
+
+```
+if |S_before| <= 1:
+  r = 1 if |S_after| == 1 else 0
+else:
+  r = (log2 |S_before| - log2 |S_after|) / log2 |S_before|
+```
+
+This maps fractional information gain (in bits, relative to the maximum possible for that step) into [0,1]. A perfect solve on the final step yields r = 1. No reduction yields r = 0.
+
+### Thompson Sampling + Decay
+
+Each arm maintains Beta(a, b) pseudo‑counts (success ≈ reward, failure ≈ 1 - reward). On update:
+
+```
+a = 1 + (a - 1) * γ + reward
+b = 1 + (b - 1) * γ + (1 - reward)
+```
+
+where γ = 0.5^(1 / halfLifeUpdates). Default half‑life is 20 updates (older evidence exponentially down‑weighted). Sampling draws Beta(a, b) for each arm and selects the argmax (standard Thompson Sampling). This yields continual exploration while drifting toward higher expected reduction strategies.
+
+### Per-Length Persistence
+
+Bandit state is tracked independently per word length L under localStorage keys:
+
+```
+ibexicon:bandit:v1:<L>
+```
+
+Switching lengths uses (and continues learning) that length’s history without contaminating other lengths.
+
+### Resetting the Bandit
+
+In the Suggest panel a "Reset bandit" button clears the per‑length state (reinitializing all arms to Beta(1,1)). Programmatically you can call:
+
+```ts
+import { resetState } from '@/policy/bandit'
+resetState(length)
+```
+
+### Simulator Support
+
+The Node simulator can include the adaptive bandit as a meta‑policy:
+
+```
+npm run eval:run -- --policies composite,pure-eig,pure-solve,unique-letters,bandit
+```
+
+Additional flags:
+
+- `--bandit-reset-per-trial` – Reinitialize bandit state at the start of every trial (measures cold‑start performance; default: persistent learning across trials in each worker shard).
+- `--bandit-half-life <n>` – Override decay half‑life in updates (default 20).
+
+Example (evaluate bandit with faster decay and per‑trial resets for lengths 5 & 6):
+
+```bash
+npm run eval:run -- --lengths 5,6 --policies bandit --bandit-reset-per-trial --bandit-half-life 10 --trials 2000
+```
+
+The JSON summary in `eval/results/` will include `bandit` in the `policies` list when used.
+
+---
+
 i 19975318
 the 17594291
 

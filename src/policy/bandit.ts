@@ -1,49 +1,68 @@
-export type PolicyId = "composite" | "pure-eig" | "in-set-only" | "unique-letters"
+export type PolicyId = 'composite' | 'pure-eig' | 'in-set-only' | 'unique-letters'
 
-export interface ArmState { a: number; b: number; updates: number }
-export interface BanditState { arms: Record<PolicyId, ArmState>; totalUpdates: number }
-export interface BanditConfig { halfLifeUpdates?: number }
+export interface ArmState {
+  a: number
+  b: number
+  updates: number
+}
+export interface BanditState {
+  arms: Record<PolicyId, ArmState>
+  totalUpdates: number
+}
+export interface BanditConfig {
+  halfLifeUpdates?: number
+}
 const DEFAULT_HALF_LIFE = 20
 
 function emptyState(): BanditState {
   return {
     totalUpdates: 0,
     arms: {
-      "composite": { a: 1, b: 1, updates: 0 },
-      "pure-eig": { a: 1, b: 1, updates: 0 },
-      "in-set-only": { a: 1, b: 1, updates: 0 },
-      "unique-letters": { a: 1, b: 1, updates: 0 },
-    }
+      composite: { a: 1, b: 1, updates: 0 },
+      'pure-eig': { a: 1, b: 1, updates: 0 },
+      'in-set-only': { a: 1, b: 1, updates: 0 },
+      'unique-letters': { a: 1, b: 1, updates: 0 },
+    },
   }
 }
 
-function keyForLength(L: number) { return `ibexicon:bandit:v1:${L}` }
+function keyForLength(L: number) {
+  return `ibexicon:bandit:v1:${L}`
+}
 
 export function loadState(L: number): BanditState {
   try {
-    if (typeof localStorage === "undefined") return emptyState()
+    if (typeof localStorage === 'undefined') return emptyState()
     const raw = localStorage.getItem(keyForLength(L))
     if (!raw) return emptyState()
     const obj = JSON.parse(raw) as BanditState
     // sanity
-    if (!obj || typeof obj !== "object" || !obj.arms) return emptyState()
+    if (!obj || typeof obj !== 'object' || !obj.arms) return emptyState()
     const base = emptyState()
     for (const k of Object.keys(base.arms) as PolicyId[]) {
-      if (!obj.arms[k]) obj.arms[k] = { a:1, b:1, updates:0 }
+      if (!obj.arms[k]) obj.arms[k] = { a: 1, b: 1, updates: 0 }
       else {
         const a = obj.arms[k]!.a
         const b = obj.arms[k]!.b
         const u = obj.arms[k]!.updates
-        if (!(a>0) || !(b>0)) obj.arms[k] = { a:1, b:1, updates: u|0 }
+        if (!(a > 0) || !(b > 0)) obj.arms[k] = { a: 1, b: 1, updates: u | 0 }
       }
     }
-    if (typeof obj.totalUpdates !== "number" || obj.totalUpdates < 0) obj.totalUpdates = 0
+    if (typeof obj.totalUpdates !== 'number' || obj.totalUpdates < 0) obj.totalUpdates = 0
     return obj
-  } catch { return emptyState() }
+  } catch {
+    return emptyState()
+  }
 }
 
 export function saveState(L: number, s: BanditState) {
-  try { if (typeof localStorage !== "undefined") localStorage.setItem(keyForLength(L), JSON.stringify(s)) } catch {}
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(keyForLength(L), JSON.stringify(s))
+    }
+  } catch {
+    // Ignore storage failures (quota, privacy mode, etc.)
+  }
 }
 
 export function resetState(L: number) {
@@ -123,11 +142,11 @@ export function updatePolicy(L: number, id: PolicyId, reward01: number, cfg?: Ba
 }
 
 /** Compute normalized reward from |S_before|, |S_after|. If S_before<=1: solved→1 else 0 */
-export function rewardFromSizes(Sbefore: number, Safter: number): { r01: number, rawBits: number } {
-  const b = Math.max(1, Sbefore|0)
-  const a = Math.max(1, Safter|0)
+export function rewardFromSizes(Sbefore: number, Safter: number): { r01: number; rawBits: number } {
+  const b = Math.max(1, Sbefore | 0)
+  const a = Math.max(1, Safter | 0)
   if (b <= 1) {
-    return { r01: (a===1 ? 1 : 0), rawBits: Math.log2(b) - Math.log2(a) }
+    return { r01: a === 1 ? 1 : 0, rawBits: Math.log2(b) - Math.log2(a) }
   }
   const num = Math.log2(b) - Math.log2(a)
   const den = Math.log2(b)

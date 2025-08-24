@@ -195,13 +195,20 @@ function pickGuess(
 }
 
 // --- Bandit state (in-memory) ---
-interface ArmState { a: number; b: number; updates: number }
-interface BanditState { arms: Record<BaseBanditPolicy, ArmState>; totalUpdates: number }
+interface ArmState {
+  a: number
+  b: number
+  updates: number
+}
+interface BanditState {
+  arms: Record<BaseBanditPolicy, ArmState>
+  totalUpdates: number
+}
 function emptyBanditState(): BanditState {
   return {
     totalUpdates: 0,
     arms: {
-      'composite': { a: 1, b: 1, updates: 0 },
+      composite: { a: 1, b: 1, updates: 0 },
       'pure-eig': { a: 1, b: 1, updates: 0 },
       'in-set-only': { a: 1, b: 1, updates: 0 },
       'unique-letters': { a: 1, b: 1, updates: 0 },
@@ -306,8 +313,8 @@ function runTrials(input: WorkerInput): ShardResult {
         totalAttemptsSuccess += attemptsUsed
         if (input.policy === 'bandit') {
           // Reward on solving: after state would be 1
-            const r = rewardFromSizes(Sbefore, 1)
-            updateArm(banditState!, chosenPolicy as BaseBanditPolicy, r, halfLife)
+          const r = rewardFromSizes(Sbefore, 1)
+          updateArm(banditState!, chosenPolicy as BaseBanditPolicy, r, halfLife)
         }
         break
       } else {
