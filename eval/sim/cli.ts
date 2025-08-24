@@ -13,7 +13,7 @@ import path from 'node:path'
 import { Worker } from 'node:worker_threads'
 import { execSync } from 'node:child_process'
 
-type Policy = 'composite' | 'pure-eig' | 'pure-solve' | 'unique-letters'
+type Policy = 'composite' | 'pure-eig' | 'pure-solve' | 'unique-letters' | 'bandit'
 
 interface ManifestSet {
   id: string
@@ -34,6 +34,8 @@ interface Job {
   seed: number
   wordsFile: string
   priorsFile: string
+  banditResetPerTrial?: boolean
+  halfLifeUpdates?: number
 }
 
 interface ShardResult {
@@ -235,7 +237,11 @@ async function main() {
     .option('--ids <csv>', 'Explicit dataset ids (overrides --lengths)')
     .option('--trials <n>', 'Trials per (length,policy)', (v) => Number(v), 1000)
     .option('--attempts <n>', 'Max attempts per game', (v) => Number(v), 6)
-    .option('--policies <csv>', 'Policies CSV', 'composite,pure-eig,pure-solve,unique-letters')
+    .option(
+      '--policies <csv>',
+      'Policies CSV (include "bandit" to evaluate meta-policy)',
+      'composite,pure-eig,pure-solve,unique-letters,bandit',
+    )
     .option(
       '--concurrency <n>',
       'Max parallel workers',
@@ -243,6 +249,13 @@ async function main() {
       Math.min(8, os.cpus().length),
     )
     .option('--seed <n>', 'Base RNG seed (default: timestamp)', (v) => Number(v))
+    .option('--bandit-reset-per-trial', 'Reset bandit state each trial (for control)', false)
+    .option(
+      '--bandit-half-life <n>',
+      'Half-life (in updates) for exponential decay of bandit pseudo-counts',
+      (v) => Number(v),
+      20,
+    )
   program.parse(process.argv)
   const opts = program.opts<{
     lengths: string
@@ -252,6 +265,8 @@ async function main() {
     policies: string
     concurrency: number
     seed?: number
+    banditResetPerTrial: boolean
+    banditHalfLife: number
   }>()
   // Load manifest sets
   const manifestPath = path.resolve('public', 'wordlists', 'en', 'manifest.json')
@@ -303,6 +318,8 @@ async function main() {
         seed: shardSeed,
         wordsFile: set.wordsFile,
         priorsFile: set.priorsFile,
+        banditResetPerTrial: opts.banditResetPerTrial,
+        halfLifeUpdates: opts.banditHalfLife,
       })
       shardIndex++
     }
@@ -334,6 +351,10 @@ async function main() {
       attempts: opts.attempts,
       concurrency,
       baseSeed,
+      bandit: {
+        resetPerTrial: opts.banditResetPerTrial,
+        halfLifeUpdates: opts.banditHalfLife,
+      },
     },
     rows,
   }

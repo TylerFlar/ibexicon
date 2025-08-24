@@ -9,7 +9,13 @@ import { suggestNext } from '../../src/solver/scoring.ts'
 import { mulberry32 } from '../../src/solver/random.ts'
 
 /** Policy identifiers supported by the simulator worker */
-export type Policy = 'composite' | 'pure-eig' | 'pure-solve' | 'unique-letters'
+export type Policy =
+  | 'composite'
+  | 'pure-eig'
+  | 'pure-solve'
+  | 'unique-letters'
+  | 'in-set-only'
+  | 'bandit'
 
 /** Data passed from the main thread */
 export interface WorkerInput {
@@ -21,6 +27,8 @@ export interface WorkerInput {
   seed: number // base seed for deterministic RNG
   wordsFile: string
   priorsFile: string
+  banditResetPerTrial?: boolean
+  halfLifeUpdates?: number
 }
 
 /** Aggregate statistics returned to the parent */
@@ -118,8 +126,11 @@ function pickUniqueLetters(words: string[], priors: Record<string, number>): str
   return best || words[0]!
 }
 
+// base (non-meta) policies bandit may choose among
+type BaseBanditPolicy = 'composite' | 'pure-eig' | 'in-set-only' | 'unique-letters'
+
 function pickGuess(
-  policy: Policy,
+  policy: Policy | BaseBanditPolicy,
   words: string[],
   priors: Record<string, number>,
   attemptsLeft: number,
@@ -163,9 +174,74 @@ function pickGuess(
           },
         )[0]?.guess || words[0]!
       )
+    case 'in-set-only': {
+      // pick highest prior mass (renorm not needed for argmax)
+      let best = words[0]!
+      let bestP = -1
+      for (const w of words) {
+        const p = priors[w] ?? 0
+        if (p > bestP || (p === bestP && w < best)) {
+          best = w
+          bestP = p
+        }
+      }
+      return best
+    }
     case 'unique-letters':
       return pickUniqueLetters(words, priors)
+    case 'bandit':
+      throw new Error('Internal error: meta-policy bandit should not be directly guessed')
   }
+}
+
+// --- Bandit state (in-memory) ---
+interface ArmState { a: number; b: number; updates: number }
+interface BanditState { arms: Record<BaseBanditPolicy, ArmState>; totalUpdates: number }
+function emptyBanditState(): BanditState {
+  return {
+    totalUpdates: 0,
+    arms: {
+      'composite': { a: 1, b: 1, updates: 0 },
+      'pure-eig': { a: 1, b: 1, updates: 0 },
+      'in-set-only': { a: 1, b: 1, updates: 0 },
+      'unique-letters': { a: 1, b: 1, updates: 0 },
+    },
+  }
+}
+function decayGamma(halfLife: number): number {
+  return Math.pow(0.5, 1 / Math.max(1, halfLife))
+}
+function sampleArm(state: BanditState): BaseBanditPolicy {
+  const draws: Array<[BaseBanditPolicy, number]> = []
+  for (const id of Object.keys(state.arms) as BaseBanditPolicy[]) {
+    const { a, b } = state.arms[id]!
+    // Approximate Beta sampling (same heuristic as browser side)
+    const u1 = Math.random() || 1e-12
+    const u2 = Math.random() || 1e-12
+    const x = Math.pow(u1, 1 / a)
+    const y = Math.pow(u2, 1 / b)
+    const theta = x / (x + y)
+    draws.push([id, theta])
+  }
+  draws.sort((a, b) => b[1] - a[1])
+  return draws[0]![0]
+}
+function updateArm(state: BanditState, id: BaseBanditPolicy, reward01: number, halfLife: number) {
+  const g = decayGamma(halfLife)
+  const arm = state.arms[id]!
+  const r = Math.max(0, Math.min(1, reward01))
+  arm.a = Math.max(1, 1 + (arm.a - 1) * g + r)
+  arm.b = Math.max(1, 1 + (arm.b - 1) * g + (1 - r))
+  arm.updates++
+  state.totalUpdates++
+}
+function rewardFromSizes(Sbefore: number, Safter: number): number {
+  const b = Math.max(1, Sbefore | 0)
+  const a = Math.max(1, Safter | 0)
+  if (b <= 1) return a === 1 ? 1 : 0
+  const num = Math.log2(b) - Math.log2(a)
+  const den = Math.log2(b)
+  return den > 0 ? Math.max(0, Math.min(1, num / den)) : 0
 }
 
 function patternAllGreen(pat: ReturnType<typeof encodeTrits>, length: number): boolean {
@@ -196,7 +272,14 @@ function runTrials(input: WorkerInput): ShardResult {
   let totalTimeSuccessMs = 0
   let remainingOnFailAccum = 0
 
+  // Bandit state (per length) only if meta-policy used
+  let banditState: BanditState | null = input.policy === 'bandit' ? emptyBanditState() : null
+  const halfLife = input.halfLifeUpdates ?? 20
+
   for (let t = 0; t < input.trials; t++) {
+    if (input.policy === 'bandit' && input.banditResetPerTrial) {
+      banditState = emptyBanditState()
+    }
     const secret = sampleSecret(prior, rng)
     const cs = new CandidateSet(prior.words)
     let solved = false
@@ -207,7 +290,13 @@ function runTrials(input: WorkerInput): ShardResult {
       // Build renormalized priors object on alive set only (suggestNext does internal renorm, but unique policy uses raw)
       const alivePriors: Record<string, number> = Object.create(null)
       for (const w of aliveWords) alivePriors[w] = prior.priors[w] ?? 0
-      const guess = pickGuess(input.policy, aliveWords, alivePriors, attemptsLeft, attemptsMax)
+      let chosenPolicy: Policy | BaseBanditPolicy = input.policy
+      if (input.policy === 'bandit') {
+        if (!banditState) banditState = emptyBanditState()
+        chosenPolicy = sampleArm(banditState)
+      }
+      const Sbefore = cs.aliveCount()
+      const guess = pickGuess(chosenPolicy, aliveWords, alivePriors, attemptsLeft, attemptsMax)
       const pat = feedbackPattern(guess, secret)
       if (patternAllGreen(pat as any, input.length)) {
         solved = true
@@ -215,9 +304,19 @@ function runTrials(input: WorkerInput): ShardResult {
         attemptHist[attemptsUsed - 1]!++
         successes++
         totalAttemptsSuccess += attemptsUsed
+        if (input.policy === 'bandit') {
+          // Reward on solving: after state would be 1
+            const r = rewardFromSizes(Sbefore, 1)
+            updateArm(banditState!, chosenPolicy as BaseBanditPolicy, r, halfLife)
+        }
         break
       } else {
         cs.applyFeedback(guess, pat)
+        if (input.policy === 'bandit') {
+          const Safter = cs.aliveCount()
+          const r = rewardFromSizes(Sbefore, Safter)
+          updateArm(banditState!, chosenPolicy as BaseBanditPolicy, r, halfLife)
+        }
         attemptsLeft--
       }
     }
