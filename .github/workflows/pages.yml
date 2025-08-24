@@ -59,15 +59,23 @@ jobs:
       - name: Run tests
         run: npm test --silent
 
-      - name: Build site (Vite)
+      - name: Build site for deploy (Vite)
         env:
-          # Vite reads these so `base` becomes "/<repo>/"
           GITHUB_ACTIONS: 'true'
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: npm run build
 
+      - name: Build site for Lighthouse (root base)
+        env:
+          GITHUB_ACTIONS: 'true'
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          FORCE_BASE: '/'
+        run: |
+          rm -rf dist-lh || true
+          npm run build -- --outDir dist-lh
+
       - name: Lighthouse CI (accessibility)
-        run: npm run lhci
+        run: npx lhci autorun --collect.staticDistDir=dist-lh
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
