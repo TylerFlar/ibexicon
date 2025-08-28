@@ -162,3 +162,4 @@ Icon?
 \n# Rust / wasm-pack build artifacts
 wasm/ibxwasm/target
 wasm/ibxwasm/pkg
+test-results/
