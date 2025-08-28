@@ -12,6 +12,8 @@ export interface TileProps {
   onSelect?(index: number): void
   selected?: boolean
   colorblind?: boolean
+  /** If true, prevent this tile from taking focus (e.g., while typing into mirrored input). */
+  preventFocusSteal?: boolean
   // Direct typing mode (letters mode) callbacks
   onLetter?(ch: string, index: number): void
   onBackspace?(index: number): void
@@ -42,6 +44,7 @@ export function Tile({
   onSelect,
   selected,
   colorblind,
+  preventFocusSteal,
   onLetter,
   onBackspace,
   onNavigate,
@@ -111,6 +114,11 @@ export function Tile({
 
   const handleClick = (e: React.MouseEvent) => {
     if (disabled) return
+    if (preventFocusSteal) {
+      // Keep external input focused; still allow color cycling or selection logic.
+      e.preventDefault()
+      e.stopPropagation()
+    }
     if (disableCycle) {
       onSelect?.(index)
       return
@@ -121,7 +129,7 @@ export function Tile({
   return (
     <button
       type="button"
-      tabIndex={0}
+      tabIndex={preventFocusSteal ? -1 : 0}
       aria-label={`Letter ${letter || 'blank'} at position ${index + 1} is ${valueLabels[value]}`}
       className="tile relative text-lg font-semibold"
       data-state={valueLabels[value]}

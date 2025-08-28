@@ -89,6 +89,7 @@ export function GuessRow({
 
   // pattern text entry removed
 
+  const [inputFocused, setInputFocused] = useState(false)
   const tiles = useMemo(
     () =>
       Array.from({ length }, (_, i) => (
@@ -103,13 +104,14 @@ export function GuessRow({
           disableCycle={false}
           colorblind={colorblind}
           selected={i === cursor}
+          preventFocusSteal={inputFocused}
           onLetter={(ch) => applyLetter(ch)}
           onBackspace={() => applyBackspace()}
           onNavigate={(d) => navigate(d)}
           onEnter={handleCommit}
           onSelect={() => {
             setCursor(i)
-            hiddenInputRef.current?.focus()
+            visibleInputRef.current?.focus()
           }}
         />
       )),
@@ -124,14 +126,17 @@ export function GuessRow({
       applyBackspace,
       navigate,
       handleCommit,
+      inputFocused,
     ],
   )
 
   // Optional focusing of active tile (not required for input anymore)
   const tileRefs = useRef<(HTMLButtonElement | null)[]>([])
   useEffect(() => {
-    tileRefs.current[cursor]?.focus()
-  }, [cursor])
+    if (!inputFocused) {
+      tileRefs.current[cursor]?.focus()
+    }
+  }, [cursor, inputFocused])
 
   // Global key handler so typing works anywhere (unless in an editable field outside the board)
   useEffect(() => {
@@ -170,21 +175,38 @@ export function GuessRow({
     return () => window.removeEventListener('keydown', handler)
   }, [disabled, applyLetter, applyBackspace, navigate, handleCommit])
 
-  // Hidden input for mobile soft keyboard: we capture raw text additions and diffs.
+  // Visible mirrored input (improves mobile keyboard access)
   const hiddenInputRef = useRef<HTMLInputElement | null>(null)
-  const [hiddenMirror, setHiddenMirror] = useState('')
-  const onHiddenChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value
-    if (!raw) return // field got cleared
-    // Take the last alpha character typed
-    const ch = raw.slice(-1)
-    if (/^[a-zA-Z]$/.test(ch)) {
-      applyLetter(ch.toLowerCase())
-    } else if (ch === ' ' || ch === '\n') {
-      // ignore spacing/newlines
+  const visibleInputRef = useRef<HTMLInputElement | null>(null)
+  const [inputValue, setInputValue] = useState(value)
+
+  // Keep internal input mirror synced when external value changes (from parent or tile actions)
+  useEffect(() => {
+    setInputValue(value)
+  }, [value])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (disabled) return
+    let raw = e.target.value
+    // Normalize: letters only, lowercase, trim length
+    raw = raw
+      .replace(/[^a-zA-Z]/g, '')
+      .toLowerCase()
+      .slice(0, length)
+    setInputValue(raw)
+    onChange(raw)
+    setCursor(Math.min(raw.length, length - 1))
+  }
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleCommit()
+      e.preventDefault()
+    } else if (e.key === 'ArrowLeft') {
+      navigate(-1)
+    } else if (e.key === 'ArrowRight') {
+      navigate(1)
     }
-    // Reset mirror so next key produces distinct change
-    setHiddenMirror('')
   }
 
   return (
@@ -193,27 +215,9 @@ export function GuessRow({
       role="group"
       aria-label="Active guess row (type letters, then switch to Colors mode to set feedback)"
     >
-      {/* Hidden text input to summon mobile soft keyboard.
-          We mirror keystrokes via onChange and then immediately clear the field so
-          the visible tiles remain the primary UI. */}
-      <input
-        ref={hiddenInputRef}
-        type="text"
-        inputMode="text"
-        autoCapitalize="none"
-        autoComplete="off"
-        autoCorrect="off"
-        spellCheck={false}
-        aria-hidden="true"
-        tabIndex={-1}
-        className="absolute w-px h-px -m-px overflow-hidden whitespace-nowrap border-0 p-0"
-        value={hiddenMirror}
-        onChange={onHiddenChange}
-        onBlur={() => setHiddenMirror('')}
-      />
       <div className="flex flex-col items-center gap-1 mb-1 w-full text-[0.6rem] text-neutral-500 dark:text-neutral-400">
-        <div>
-          {value.length}/{length} letters (click tiles to set colors while typing)
+        <div id="guess-progress">
+          {value.length}/{length} letters (tap tiles to set colors)
         </div>
       </div>
       <div className="flex gap-1 mb-1" aria-label="Guess tiles">
@@ -222,6 +226,31 @@ export function GuessRow({
             ref: (el: HTMLButtonElement | null) => (tileRefs.current[i] = el),
           }),
         )}
+      </div>
+      {/* Visible input for mobile + desktop typing; placed below tiles now. */}
+      <div className="w-full max-w-xs mb-2">
+        <label className="sr-only" htmlFor="guess-input">
+          Guess letters
+        </label>
+        <input
+          id="guess-input"
+          ref={visibleInputRef}
+          type="text"
+          inputMode="text"
+          autoCapitalize="none"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+          disabled={disabled}
+          value={inputValue}
+          onChange={handleInputChange}
+          onKeyDown={handleInputKeyDown}
+          onFocus={() => setInputFocused(true)}
+          onBlur={() => setInputFocused(false)}
+          className="w-full rounded border border-neutral-300 dark:border-neutral-600 bg-transparent px-2 py-1 text-center tracking-widest font-mono text-sm focus:outline-none focus:ring focus:ring-primary/50"
+          placeholder={Array.from({ length }, () => '•').join('')}
+          aria-describedby="guess-progress"
+        />
       </div>
       <button
         type="button"
